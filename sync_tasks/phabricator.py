@@ -106,7 +106,7 @@ class Phabricator:
         if cursor.get('after'):
           task_list += self.get_tasks(task_list, task_result['cursor'])
 
-      logging.info(f"Successfully get task from project {response}")
+      logging.info(f"Successfully get task from project {task_result['columns']}")
 
       # return phabricator_task_list
       return task_list
@@ -173,7 +173,7 @@ class Phabricator:
       logging.info(f'Successfully added comment to Task ID: {comment_fields["task_id"]}')
 
     except Exception as e:
-      print(f'Failed to make task comment for Task ID {comment_fields["task_id"]}, Error {e}')
+      logging.error(f'Failed to make task comment for Task ID {comment_fields["task_id"]}, Error {e}')
 
   def send_phabricator_request(self, method, request_data):
     try:

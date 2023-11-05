@@ -178,7 +178,6 @@ def main():
   while True:
     setup_logging()
     sync_tapd_stories_phabricator_tasks(get_env(args.env))
-    time.sleep(81400)  # Sleep for 1 Day
 
 
 main()
