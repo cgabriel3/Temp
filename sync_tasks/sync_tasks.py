@@ -175,9 +175,8 @@ def main():
   parser.add_argument('--env', help='Environment')
   args = parser.parse_args()
 
-  while True:
-    setup_logging()
-    sync_tapd_stories_phabricator_tasks(get_env(args.env))
+  setup_logging()
+  sync_tapd_stories_phabricator_tasks(get_env(args.env))
 
 
 main()

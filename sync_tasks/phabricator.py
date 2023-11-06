@@ -106,7 +106,7 @@ class Phabricator:
         if cursor.get('after'):
           task_list += self.get_tasks(task_list, task_result['cursor'])
 
-      logging.info(f"Successfully get task from project {response['columns']}")
+      logging.info(f"Successfully get task from project")
 
       # return phabricator_task_list
       return task_list
