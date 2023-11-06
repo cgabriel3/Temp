@@ -154,9 +154,10 @@ def sync_tapd_stories_phabricator_tasks(env):
     if phabricator_task_fields:
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 
-    phabricator.create_update_task(sync_fields)
+    # phabricator.create_update_task(sync_fields)
 
   story_comment_list = tapd.get_comments()
+  print(story_comment_list)
   for comment in story_comment_list:
     story_id = comment['entryId']
     phabricator_task = story_id_to_phabricator_task_map.get(story_id)
@@ -167,7 +168,7 @@ def sync_tapd_stories_phabricator_tasks(env):
         'task_id': phabricator_task_id,
         'comment': formatted_phabricator_comment
       }
-      phabricator.create_comment(comment_fields)
+      # phabricator.create_comment(comment_fields)
 
 
 def main():
@@ -175,7 +176,6 @@ def main():
   parser.add_argument('--env', help='Environment')
   args = parser.parse_args()
 
-  setup_logging()
   sync_tapd_stories_phabricator_tasks(get_env(args.env))
 
 
