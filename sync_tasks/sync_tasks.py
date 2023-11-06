@@ -154,7 +154,7 @@ def sync_tapd_stories_phabricator_tasks(env):
     if phabricator_task_fields:
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 
-    # phabricator.create_update_task(sync_fields)
+    phabricator.create_update_task(sync_fields)
 
   story_comment_list = tapd.get_comments()
   print(story_comment_list)
@@ -168,7 +168,7 @@ def sync_tapd_stories_phabricator_tasks(env):
         'task_id': phabricator_task_id,
         'comment': formatted_phabricator_comment
       }
-      # phabricator.create_comment(comment_fields)
+      phabricator.create_comment(comment_fields)
 
 
 def main():
