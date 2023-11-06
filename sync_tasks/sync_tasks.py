@@ -146,7 +146,7 @@ def sync_tapd_stories_phabricator_tasks(env):
   tapd_story_list = tapd.get_stories()
   phabricator_task_list = phabricator.get_tasks([], None)
   story_id_to_phabricator_task_map = create_tapd_story_to_phabricator_task_mapping(phabricator_task_list)
-
+  return
   for story in tapd_story_list:
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
