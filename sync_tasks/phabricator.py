@@ -107,7 +107,8 @@ class Phabricator:
           task_list += self.get_tasks(task_list, task_result['cursor'])
 
       logging.info(f"Successfully get task from project {response['columns']}")
-      print(task_list)
+
+      # return phabricator_task_list
       return task_list
     except Exception as e:
       logging.error(f'Failed to get phabricator tasks. Error: {e}')
