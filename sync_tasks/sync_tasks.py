@@ -6,6 +6,7 @@ import argparse
 import re
 import logging
 import datetime
+import time
 
 # Tapd Priority to Phabricator Priority
 tapd_to_phabricator_task_priority = {
@@ -157,7 +158,6 @@ def sync_tapd_stories_phabricator_tasks(env):
     phabricator.create_update_task(sync_fields)
 
   story_comment_list = tapd.get_comments()
-  print(story_comment_list)
   for comment in story_comment_list:
     story_id = comment['entryId']
     phabricator_task = story_id_to_phabricator_task_map.get(story_id)
@@ -175,7 +175,6 @@ def main():
   parser = argparse.ArgumentParser(description='Sync Task Script')
   parser.add_argument('--env', help='Environment')
   args = parser.parse_args()
-
   sync_tapd_stories_phabricator_tasks(get_env(args.env))
 
 
