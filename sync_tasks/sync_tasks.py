@@ -154,6 +154,10 @@ def sync_tapd_stories_phabricator_tasks(env):
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
     sync_fields = format_create_task_fields(phabricator, story)
+
+    if tapd_to_phabricator_status.get(story['status']) == "Resolved" and phabricator_task_fields is None:
+      continue
+
     if phabricator_task_fields:
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 

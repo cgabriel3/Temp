@@ -27,7 +27,7 @@ class Tapd:
     try:
       comment_list = self.send_tapd_request(get_comments_api)
     except Exception as e:
-      print(f'Failed to get comments from Tapd. Error: {e}')
+      logging.error(f'Failed to get comments from Tapd. Error: {e}')
 
     return comment_list
 
