@@ -6,7 +6,9 @@ import argparse
 import re
 import logging
 import datetime
-import time
+import os
+
+directory = os.path.dirname(__file__)
 
 # Tapd Priority to Phabricator Priority
 tapd_to_phabricator_task_priority = {
@@ -27,7 +29,7 @@ tapd_to_phabricator_status = {
 def setup_logging():
   # Configure the logging module
   timestamp = datetime.datetime.now().strftime('%d-%m-%Y')
-  sync_tasks_log_file = f'../../sync_tasks_log_{timestamp}.log'
+  sync_tasks_log_file = f'{directory}/../../sync_tasks_log_{timestamp}.log'
 
   # Configure the logger
   logging.basicConfig(
@@ -40,7 +42,7 @@ def setup_logging():
 def get_env(env):
   if not env:
     env = 'prod'
-  return f'config.{env}.ini'
+  return f'{directory}/config.{env}.ini'
 
 
 def remove_html_tags(text):
@@ -175,6 +177,7 @@ def main():
   parser = argparse.ArgumentParser(description='Sync Task Script')
   parser.add_argument('--env', help='Environment')
   args = parser.parse_args()
+  setup_logging()
   sync_tapd_stories_phabricator_tasks(get_env(args.env))
 
 
