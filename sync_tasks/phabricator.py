@@ -177,6 +177,43 @@ class Phabricator:
     except Exception as e:
       logging.error(f'Failed to make task comment for Task ID {comment_fields["task_id"]}, Error {e}')
 
+  def create_update_subtask(self, sync_fields):
+    create_update_task_api = 'maniphest.edit'
+
+    request_data = {
+      'api.token': sync_fields['creator_api_token'],
+      'transactions[0][type]': 'projects.add',
+      'transactions[0][value][0]': self.project_id
+    }
+
+    if 'task_id' in sync_fields:
+      request_data['objectIdentifier'] = sync_fields['task_id']
+      sync_fields.pop('task_id')
+
+    sync_fields.pop('creator_api_token')
+    transaction_count = 1
+    for field, value in sync_fields.items():
+      request_key = f'transactions[{transaction_count}]'
+
+      if field == 'owner':
+        if value:
+          request_data[request_key + '[type]'] = field
+          request_data[request_key + '[value]'] = value
+          transaction_count += 1
+
+      else:
+        request_data[request_key + '[type]'] = field
+        request_data[request_key + '[value]'] = value
+        transaction_count += 1
+    if transaction_count > 1:
+      try:
+        response = self.send_phabricator_request(create_update_task_api, request_data)
+        logging.info(f'Update Subtask Successful, Changelist: {response["result"]["transactions"]}')
+      except Exception as e:
+        logging.error(f'Failed to update the SubTask. Error: {e}')
+    else:
+      logging.error(f'SubTask not updated, No Changes.')
+
   def send_phabricator_request(self, method, request_data):
     try:
       phabricator_api_url = self.api_url + method

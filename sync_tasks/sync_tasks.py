@@ -1,3 +1,4 @@
+import time
 from phabricator import Phabricator
 from tapd import Tapd
 import configparser
@@ -7,28 +8,42 @@ import logging
 import datetime
 import os
 import json
+from datetime import datetime, time
 
 directory = os.path.dirname(__file__)
 
 # Tapd Priority to Phabricator Priority
-tapd_to_phabricator_task_priority = {
+tapd_story_priority_to_phabricator_task_priority = {
   "Nice To Have": 'wish',
   "Low": 'low',
   "Middle": 'normal',
   "High": 'high'
 }
 
-tapd_to_phabricator_status = {
+tapd_task_priority_to_phabricator_task_priority = {
+  "1": 'wish',
+  "2": 'low',
+  "3": 'normal',
+  "4": 'high'
+}
+
+tapd_story_status_to_phabricator_status = {
   'Assess Finished': "resolved",
   'Developing': "open",
   "Suspended": "open",
   "Exceptionally Terminated": "invalid"
 }
 
+tapd_task_status_to_phabricator_status = {
+  "done": "resolved",
+  "progressing": "open",
+  "open": "open",
+}
+
 
 def setup_logging():
   # Configure the logging module
-  timestamp = datetime.datetime.now().strftime('%d-%m-%Y')
+  timestamp = datetime.now().strftime('%d-%m-%Y')
   sync_tasks_log_file = f'{directory}/../../sync_tasks_log_{timestamp}.log'
 
   # Configure the logger
@@ -53,11 +68,22 @@ def remove_html_tags(text):
   return re.sub(r'<.*?>', '', text) if text else ""
 
 
-def extract_tapd_story_id_from_text(text):
+def extract_id_from_text(text):
+  # Get the ID at the end of the  URL
   match = re.search(r'/(\d+)$', text)
   if match:
     return match.group(1)
   return None
+
+
+def extract_tapd_story_id_from_text(text):
+  if '/stories/view/' in text:
+    return extract_id_from_text(text)
+
+
+def extract_tapd_task_id_from_text(text):
+  if '/tasks/view/' in text:
+    return extract_id_from_text(text)
 
 
 def format_task_description(task_description, tapd_story_url):
@@ -66,15 +92,24 @@ def format_task_description(task_description, tapd_story_url):
   return formatted_description
 
 
+def format_sub_task_description(task_description, tapd_task_id, workspace_id):
+  task_description = re.sub(r'<.*?>', '', task_description) if task_description else ""
+  tapd_task_url = "https://www.tapd.cn/" + workspace_id + "/prong/tasks/view/" + tapd_task_id
+  formatted_description = f'{task_description}\n\nTAPD Task Link: {tapd_task_url}'
+  return formatted_description
+
+
 def format_phabricator_comment(author, description):
   return f'{remove_html_tags(description)}'
 
 
-def create_tapd_story_to_phabricator_task_mapping(phabricator_task_list):
-  tapd_story_url_to_phabricator_task = {}
+def create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list):
+  tapd_story_id_to_phabricator_task = {}
+  tapd_task_id_to_phabricator_task = {}
   for task in phabricator_task_list:
     tapd_story_id = extract_tapd_story_id_from_text(task['fields']['description']['raw'])
-    if tapd_story_id is not None:
+    tapd_task_id = extract_tapd_task_id_from_text(task['fields']['description']['raw'])
+    if tapd_story_id is not None or tapd_task_id is not None:
       task_fields = task['fields']
 
       task_column = task['attachments']['columns']['boards']
@@ -89,8 +124,9 @@ def create_tapd_story_to_phabricator_task_mapping(phabricator_task_list):
       if task_fields['custom.maniphest:testers']:
         task_tester = task_fields['custom.maniphest:testers']
 
-      tapd_story_url_to_phabricator_task[tapd_story_id] = {
+      phabricator_task = {
         'id': task['id'],
+        'phid': task['phid'],
         'title': task_fields['name'],
         'description': task_fields['description']['raw'],
         'owner': task_fields['ownerPHID'],
@@ -100,22 +136,28 @@ def create_tapd_story_to_phabricator_task_mapping(phabricator_task_list):
         'column': task_column_id,
         'status': task_fields['status']['value']
       }
-  return tapd_story_url_to_phabricator_task
+
+      if tapd_story_id is not None:
+        tapd_story_id_to_phabricator_task[tapd_story_id] = phabricator_task
+
+      if tapd_task_id is not None:
+        tapd_task_id_to_phabricator_task[tapd_task_id] = phabricator_task
+
+  return tapd_story_id_to_phabricator_task, tapd_task_id_to_phabricator_task
+
+
+def split_user_list(user_list):
+  return [user for user in user_list.split(";") if user]
 
 
 def format_create_task_fields(phabricator, tapd_story_fields):
   sync_description = format_task_description(tapd_story_fields['description'], tapd_story_fields['url'])
 
-  tapd_owner_list = [owner for owner in tapd_story_fields['owner'].split(";") if owner]
-  phabricator_owner_id_list = phabricator.get_user_id_list(tapd_owner_list)
+  phabricator_owner_id_list = phabricator.get_user_id_list(split_user_list(tapd_story_fields['owner']))
 
-  tapd_developer_list = [developer for developer in tapd_story_fields['developer'].split(";") if developer]
-  phabricator_developer_id_list = phabricator.get_user_id_list(tapd_developer_list)
+  phabricator_developer_id_list = phabricator.get_user_id_list(split_user_list(tapd_story_fields['developer']))
 
-  tapd_tester_list = [tester for tester in tapd_story_fields['qa'].split(";") if tester]
-  phabricator_tester_id_list = phabricator.get_user_id_list(tapd_tester_list)
-
-  phabricator_priority = tapd_to_phabricator_task_priority.get(tapd_story_fields['priority'], tapd_to_phabricator_task_priority['Middle'])
+  phabricator_tester_id_list = phabricator.get_user_id_list(tapd_story_fields['qa'])
 
   sync_fields = {
     'title': tapd_story_fields['name'],
@@ -124,8 +166,8 @@ def format_create_task_fields(phabricator, tapd_story_fields):
     'developers': phabricator_developer_id_list,
     'testers': phabricator_tester_id_list,
     'column': tapd_story_fields['category'],
-    'status': tapd_to_phabricator_status.get(tapd_story_fields['status'], 'open'),
-    'priority': phabricator_priority
+    'status': tapd_story_status_to_phabricator_status.get(tapd_story_fields['status']),
+    'priority': tapd_story_priority_to_phabricator_task_priority.get(tapd_story_fields['priority'], "middle")
   }
   if tapd_story_fields.get('phabricator_task_id'):
     sync_fields['task_id'] = tapd_story_fields['phabricator_task_id']
@@ -143,6 +185,43 @@ def format_update_task_fields(tapd_story_fields, phabricator_task_fields):
   return update_fields
 
 
+def format_create_sub_task_fields(phabricator, tapd_task):
+  task_owner = phabricator.get_user_id_list(split_user_list(tapd_task['owner']))
+  tapd_task = {
+    'title': tapd_task['name'],
+    'description': format_sub_task_description(tapd_task['description'], tapd_task['id'], tapd_task['workspace_id']),
+    'owner': task_owner,
+    'status': tapd_task_status_to_phabricator_status.get(tapd_task['status'], "open"),
+    'priority': tapd_task_priority_to_phabricator_task_priority.get(tapd_task['priority'], "middle"),
+  }
+  return tapd_task
+
+
+def format_update_sub_task_fields(tapd_task_fields, phabricator_task_fields):
+  update_fields = {
+    'task_id': phabricator_task_fields['id']
+  }
+  for field, value in tapd_task_fields.items():
+    if phabricator_task_fields[field] != value:
+      update_fields[field] = value
+  return update_fields
+
+
+def filter_task(task):
+  start_of_day = datetime.combine(datetime.now(), time.min)
+  story_time_format = '%Y-%m-%d %H:%M:%S'
+  story_modified_time = datetime.strptime(task['Task']['modified'], story_time_format)
+  if story_modified_time > start_of_day:
+    return True
+  else:
+    return False
+
+
+def filtered_tasks(tasks):
+  filtered_task_list = filter(lambda x: filter_task(x), tasks)
+  return filtered_task_list
+
+
 def sync_tapd_stories_phabricator_tasks(env):
   config = configparser.ConfigParser()
   config.read(env)
@@ -155,20 +234,21 @@ def sync_tapd_stories_phabricator_tasks(env):
 
   tapd_story_list = tapd.get_stories()
   phabricator_task_list = phabricator.get_tasks([], None)
-  story_id_to_phabricator_task_map = create_tapd_story_to_phabricator_task_mapping(phabricator_task_list)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(
+    phabricator_task_list)
 
   for story in tapd_story_list:
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
     sync_fields = format_create_task_fields(phabricator, story)
-    sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
 
-    if tapd_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
+    if tapd_story_status_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
       continue
 
     if phabricator_task_fields:
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 
+    sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
     phabricator.create_update_task(sync_fields)
 
   story_comment_list = tapd.get_comments()
@@ -185,6 +265,23 @@ def sync_tapd_stories_phabricator_tasks(env):
         'commentator_api_token': get_creator_api_token(username_to_phabricator_api_token_map, comment["author"], default_api_token)
       }
       phabricator.create_comment(comment_fields)
+
+  tapd_task_list = tapd.get_task()
+  filtered_tapd_task_list = filtered_tasks(tapd_task_list)
+  for tapd_task in filtered_tapd_task_list:
+    tapd_task = tapd_task['Task']
+    phabricator_parent_task = story_id_to_phabricator_task_map.get(tapd_task['story_id'])
+
+    if phabricator_parent_task is None:
+      continue
+
+    phabricator_task_fields = task_id_to_phabricator_task_map.get(tapd_task['id'])
+    sync_fields = format_create_sub_task_fields(phabricator, tapd_task)
+    if phabricator_task_fields is not None:
+      sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
+    sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
+    sync_fields['parent'] = phabricator_parent_task['phid']
+    phabricator.create_update_subtask(sync_fields)
 
 
 def main():
