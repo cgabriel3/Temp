@@ -14,10 +14,12 @@ class Phabricator:
     create_update_task_api = 'maniphest.edit'
 
     request_data = {
-      'api.token': self.api_token,
+      'api.token': sync_fields['creator_api_token'],
       'transactions[0][type]': 'projects.add',
       'transactions[0][value][0]': self.project_id
     }
+
+    sync_fields.pop('creator_api_token')
 
     if 'task_id' in sync_fields:
       request_data['objectIdentifier'] = sync_fields['task_id']
@@ -162,7 +164,7 @@ class Phabricator:
   def create_comment(self, comment_fields):
     update_task_api = 'maniphest.edit'
     request_data = {
-      'api.token': self.api_token,
+      'api.token': comment_fields["commentator_api_token"],
       'objectIdentifier': comment_fields["task_id"],
       'transactions[0][type]': 'comment',
       'transactions[0][value]': comment_fields["comment"]

@@ -1,4 +1,3 @@
-import time
 from phabricator import Phabricator
 from tapd import Tapd
 import configparser
@@ -7,6 +6,7 @@ import re
 import logging
 import datetime
 import os
+import json
 
 directory = os.path.dirname(__file__)
 
@@ -43,6 +43,10 @@ def get_env(env):
   if not env:
     env = 'prod'
   return f'{directory}/config.{env}.ini'
+
+
+def get_creator_api_token(username_to_phabricator_api_token_map, creator, default_api_token):
+  return username_to_phabricator_api_token_map.get(creator, default_api_token)
 
 
 def remove_html_tags(text):
@@ -146,6 +150,9 @@ def sync_tapd_stories_phabricator_tasks(env):
   phabricator = Phabricator(config)
   tapd = Tapd(config)
 
+  username_to_phabricator_api_token_map = json.loads(config['phabricator']['api_token_map'])
+  default_api_token = config['phabricator']['api_token']
+
   tapd_story_list = tapd.get_stories()
   phabricator_task_list = phabricator.get_tasks([], None)
   story_id_to_phabricator_task_map = create_tapd_story_to_phabricator_task_mapping(phabricator_task_list)
@@ -154,6 +161,7 @@ def sync_tapd_stories_phabricator_tasks(env):
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
     sync_fields = format_create_task_fields(phabricator, story)
+    sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
 
     if tapd_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
       continue
@@ -167,12 +175,14 @@ def sync_tapd_stories_phabricator_tasks(env):
   for comment in story_comment_list:
     story_id = comment['entryId']
     phabricator_task = story_id_to_phabricator_task_map.get(story_id)
+
     if phabricator_task:
       phabricator_task_id = phabricator_task['id']
       formatted_phabricator_comment = format_phabricator_comment(comment['author'], comment['description'])
       comment_fields = {
         'task_id': phabricator_task_id,
-        'comment': formatted_phabricator_comment
+        'comment': formatted_phabricator_comment,
+        'commentator_api_token': get_creator_api_token(username_to_phabricator_api_token_map, comment["author"], default_api_token)
       }
       phabricator.create_comment(comment_fields)
 
