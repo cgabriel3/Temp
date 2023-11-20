@@ -67,7 +67,7 @@ def format_task_description(task_description, tapd_story_url):
 
 
 def format_phabricator_comment(author, description):
-  return f'By {author} from TAPD:\n {remove_html_tags(description)}'
+  return f'{remove_html_tags(description)}'
 
 
 def create_tapd_story_to_phabricator_task_mapping(phabricator_task_list):
