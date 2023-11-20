@@ -8,13 +8,14 @@ class Tapd:
     self.config = config
     self.api_url = config.get(section, 'api_url')
     self.project = config.get(section, 'project')
+    self.workspace_id = config.get(section, 'workspace_id')
 
   def get_stories(self):
     get_stories_api = 'api/tapd/external/story/getStoryBySource?source='
     story_list = []
 
     try:
-      story_list = self.send_tapd_request(get_stories_api)
+      story_list = self.send_tapd_request_get(get_stories_api)
     except Exception as e:
       logging.error(f'Failed to get stories from Tapd. Error: {e}')
 
@@ -25,15 +26,54 @@ class Tapd:
     comment_list = []
 
     try:
-      comment_list = self.send_tapd_request(get_comments_api)
+      comment_list = self.send_tapd_request_get(get_comments_api)
     except Exception as e:
       logging.error(f'Failed to get comments from Tapd. Error: {e}')
 
     return comment_list
 
-  def send_tapd_request(self, method):
+  def get_stories_new(self):
+    get_stories_api = '/api/tapd/external/common/getEntryBySource/story/'
+    story_list = []
+    request_body = {
+      "workspace_id": self.workspace_id
+    }
+
+    try:
+      story_list = self.send_tapd_request_post(get_stories_api, request_body=request_body)
+    except Exception as e:
+      logging.error(f'Failed to get stories from Tapd. Error: {e}')
+
+    return story_list
+
+  def get_task(self):
+    get_tasks_api = '/api/tapd/external/common/getEntryBySource/task/'
+    task_list = []
+    request_body = {
+      "workspace_id": self.workspace_id
+    }
+
+    try:
+      task_list = self.send_tapd_request_post(get_tasks_api, request_body=request_body)
+    except Exception as e:
+      logging.error(f'Failed to get stories from Tapd. Error: {e}')
+
+    return task_list
+
+  def send_tapd_request_get(self, method):
     try:
       response = requests.get(self.api_url + method + self.project)
+      response.raise_for_status()
+      return response.json()
+
+    except requests.exceptions.RequestException as e:
+      logging.error(f'Failed to send requests to TAPD. Error: {e}')
+    except Exception as e:
+      logging.error(f'Failed to send requests to TAPD. Error: {e}')
+
+  def send_tapd_request_post(self, method, request_body):
+    try:
+      response = requests.post(self.api_url + method + self.project, json=request_body)
       response.raise_for_status()
       return response.json()
 
