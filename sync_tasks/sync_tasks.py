@@ -157,7 +157,7 @@ def format_create_task_fields(phabricator, tapd_story_fields):
 
   phabricator_developer_id_list = phabricator.get_user_id_list(split_user_list(tapd_story_fields['developer']))
 
-  phabricator_tester_id_list = phabricator.get_user_id_list(tapd_story_fields['qa'])
+  phabricator_tester_id_list = phabricator.get_user_id_list(split_user_list(tapd_story_fields['qa']))
 
   sync_fields = {
     'title': tapd_story_fields['name'],
@@ -166,8 +166,8 @@ def format_create_task_fields(phabricator, tapd_story_fields):
     'developers': phabricator_developer_id_list,
     'testers': phabricator_tester_id_list,
     'column': tapd_story_fields['category'],
-    'status': tapd_story_status_to_phabricator_status.get(tapd_story_fields['status']),
-    'priority': tapd_story_priority_to_phabricator_task_priority.get(tapd_story_fields['priority'], "middle")
+    'status': tapd_story_status_to_phabricator_status.get(tapd_story_fields['status'], "open"),
+    'priority': tapd_story_priority_to_phabricator_task_priority.get(tapd_story_fields['priority'], "normal")
   }
   if tapd_story_fields.get('phabricator_task_id'):
     sync_fields['task_id'] = tapd_story_fields['phabricator_task_id']
@@ -192,7 +192,7 @@ def format_create_sub_task_fields(phabricator, tapd_task):
     'description': format_sub_task_description(tapd_task['description'], tapd_task['id'], tapd_task['workspace_id']),
     'owner': task_owner,
     'status': tapd_task_status_to_phabricator_status.get(tapd_task['status'], "open"),
-    'priority': tapd_task_priority_to_phabricator_task_priority.get(tapd_task['priority'], "middle"),
+    'priority': tapd_task_priority_to_phabricator_task_priority.get(tapd_task['priority'], "normal"),
   }
   return tapd_task
 
