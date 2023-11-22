@@ -286,7 +286,7 @@ def sync_tapd_stories_phabricator_tasks(env):
 
     if phabricator_task:
       phabricator_task_id = phabricator_task['id']
-      formatted_phabricator_comment = format_phabricator_comment(comment['author'], comment['description'])
+      formatted_phabricator_comment = format_phabricator_comment(comment['description'])
       comment_fields = {
         'task_id': phabricator_task_id,
         'comment': formatted_phabricator_comment,
