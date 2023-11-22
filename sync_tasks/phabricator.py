@@ -1,6 +1,6 @@
 import logging
 import requests
-
+import base64
 
 class Phabricator:
   def __init__(self, config):
@@ -9,6 +9,7 @@ class Phabricator:
     self.project_id = config.get(section, 'project_id')
     self.api_token = config.get(section, 'api_token')
     self.api_url = config.get(section, 'api_url')
+    self.headers = config.get(section, 'headers')
 
   def create_update_task(self, sync_fields):
     create_update_task_api = 'maniphest.edit'
@@ -214,11 +215,42 @@ class Phabricator:
     else:
       logging.error(f'SubTask not updated, No Changes.')
 
+  def upload_file(self, file_path):
+    upload_file_api = 'file.upload'
+    file_encoding = base64.b64encode(requests.get(file_path, self.headers).content)
+
+    request_data = {
+      'api.token': self.api_token,
+      'data_base64': file_encoding,
+      'canCDN': True
+    }
+    try:
+      response = self.send_phabricator_request(upload_file_api, request_data)
+      logging.info(f'Successfully uploaded file. File Info: {response["result"]}')
+      return response['result']
+    except Exception as e:
+      logging.error(f'Failed to upload file. Error: {e}')
+
+  def get_file(self, phid):
+    get_file_api = 'file.info'
+    request_data = {
+      'api.token': self.api_token,
+      'phid': phid
+    }
+
+    try:
+      response = self.send_phabricator_request(get_file_api, request_data)
+      file_info = response['result']['objectName']
+      logging.info(f'Successfully uploaded file. File Info: {file_info}')
+      return file_info
+    except Exception as e:
+      logging.error(f'Failed to upload file. Error: {e}')
+
   def send_phabricator_request(self, method, request_data):
     try:
       phabricator_api_url = self.api_url + method
 
-      response = requests.get(phabricator_api_url, request_data)
+      response = requests.post(phabricator_api_url, request_data)
 
       response.raise_for_status()
       phabricator_response = response.json()
@@ -230,3 +262,4 @@ class Phabricator:
       logging.error(f'Failed to create request to phabricator API. Request Error: {e}')
     except Exception as e:
       logging.error(f'Failed to create request to phabricator API. Error: {e}')
+

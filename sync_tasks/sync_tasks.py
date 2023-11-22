@@ -9,6 +9,8 @@ import datetime
 import os
 import json
 from datetime import datetime, time
+import html2text
+from bs4 import BeautifulSoup
 
 directory = os.path.dirname(__file__)
 
@@ -86,8 +88,29 @@ def extract_tapd_task_id_from_text(text):
     return extract_id_from_text(text)
 
 
-def format_task_description(task_description, tapd_story_url):
-  task_description = re.sub(r'<.*?>', '', task_description) if task_description else ""
+def extract_tapd_images_from_description(img_tags):
+  src_values = [img['src'] for img in img_tags]
+  return {'src_values': src_values, 'img_tags': img_tags}
+
+
+def format_task_description(task_description, tapd_story_url, tapd, phabricator):
+  if task_description is None:
+    return ""
+  config = html2text.HTML2Text()
+  config.body_width = 0
+  config.images_as_html = True
+  task_description = config.handle(task_description)
+  task_description = task_description.replace(r'\.', '.').replace(' />', '/>')
+  soup = BeautifulSoup(task_description, 'html.parser')
+  img_tags = soup.find_all('img')
+  images = extract_tapd_images_from_description(img_tags)
+
+  for index, image in enumerate(images['src_values']):
+    res = tapd.get_images(image)
+    file_info = phabricator.upload_file(res)
+    file_object = phabricator.get_file(file_info)
+    task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
+
   formatted_description = f'{task_description}\n\nTAPD Story Link: {tapd_story_url}'
   return formatted_description
 
@@ -99,7 +122,7 @@ def format_sub_task_description(task_description, tapd_task_id, workspace_id):
   return formatted_description
 
 
-def format_phabricator_comment(author, description):
+def format_phabricator_comment(description):
   return f'{remove_html_tags(description)}'
 
 
@@ -150,8 +173,13 @@ def split_user_list(user_list):
   return [user for user in user_list.split(";") if user]
 
 
-def format_create_task_fields(phabricator, tapd_story_fields):
-  sync_description = format_task_description(tapd_story_fields['description'], tapd_story_fields['url'])
+def format_create_task_fields(phabricator, tapd_story_fields, tapd):
+  sync_description = format_task_description(
+    tapd_story_fields['description'],
+    tapd_story_fields['url'],
+    tapd,
+    phabricator
+  )
 
   phabricator_owner_id_list = phabricator.get_user_id_list(split_user_list(tapd_story_fields['owner']))
 
@@ -240,7 +268,7 @@ def sync_tapd_stories_phabricator_tasks(env):
   for story in tapd_story_list:
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
-    sync_fields = format_create_task_fields(phabricator, story)
+    sync_fields = format_create_task_fields(phabricator, story, tapd)
 
     if tapd_story_status_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
       continue

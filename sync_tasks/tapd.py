@@ -11,7 +11,7 @@ class Tapd:
     self.workspace_id = config.get(section, 'workspace_id')
 
   def get_stories(self):
-    get_stories_api = 'api/tapd/external/story/getStoryBySource?source='
+    get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'
     story_list = []
 
     try:
@@ -22,7 +22,7 @@ class Tapd:
     return story_list
 
   def get_comments(self):
-    get_comments_api = 'api/tapd/external/comment/getCommentBySource?source='
+    get_comments_api = f'api/tapd/external/comment/getCommentBySource?source={self.project}'
     comment_list = []
 
     try:
@@ -60,9 +60,21 @@ class Tapd:
 
     return task_list
 
+  def get_images(self, image_path):
+    get_image_api = f'api/tapd/external/image/{self.project}?workspaceId={self.workspace_id}&imagePath={image_path}'
+    image = {}
+
+    try:
+      response = self.send_tapd_request_get(get_image_api)
+      image = response['data']['Attachment']['download_url']
+    except Exception as e:
+      logging.error(f'Failed to get comments from Tapd. Error: {e}')
+
+    return image
+
   def send_tapd_request_get(self, method):
     try:
-      response = requests.get(self.api_url + method + self.project)
+      response = requests.get(self.api_url + method)
       response.raise_for_status()
       return response.json()
 

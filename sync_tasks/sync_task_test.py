@@ -4,10 +4,12 @@ from phabricator import Phabricator
 import sync_tasks
 import configparser
 import json
+from tapd import Tapd
 
 config = configparser.ConfigParser()
 config.read(sync_tasks.get_env('test'))
 phabricator = Phabricator(config)
+tapd = Tapd(config)
 
 username_to_phabricator_api_token_map = json.loads(config['phabricator']['api_token_map'])
 default_api_token = config['phabricator']['api_token']
@@ -35,7 +37,7 @@ update_task_fields = {
   "id": "9999999",
   "workspaceId": 67664246,
   "name": "This is updated from Unit Testing",
-  "description": "Updated Testing Description",
+  "description": "<img src='/tfl/captures/2023-11/tapd_59680598_base64_1700471623_194.png' width='80%'/>",
   "url": "https://www.tapd.cn/67664246/prong/stories/view/9999999",
   "status": "Assess Finished",
   "priority": "Nice To Have",
@@ -137,18 +139,24 @@ create_sub_task_fields = {
 @pytest.mark.run(order=1)
 def test_create_task():
   sync_fields = sync_tasks.format_create_task_fields(phabricator, test_task_fields)
-  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, test_task_fields["creator"], default_api_token)
+  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
+    username_to_phabricator_api_token_map,
+    test_task_fields["creator"],
+    default_api_token
+  )
   phabricator.create_update_task(sync_fields)
 
 
 @pytest.mark.run(order=2)
 def test_update_task():
-  phabricator_task_list = phabricator.get_tasks([], None)
-  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
-  sync_fields = sync_tasks.format_create_task_fields(phabricator, update_task_fields)
-  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, update_task_fields["creator"],
-                                                                      default_api_token)
-  phabricator.create_update_task(sync_tasks.format_update_task_fields(sync_fields, story_id_to_phabricator_task_map[test_task_fields['id']]))
+  sync_fields = sync_tasks.format_create_task_fields(phabricator, update_task_fields, tapd)
+  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
+    username_to_phabricator_api_token_map,
+    update_task_fields["creator"],
+    default_api_token
+  )
+  sync_fields['task_id'] = 77799
+  phabricator.create_update_task(sync_fields)
 
 
 @pytest.mark.run(order=3)
@@ -170,6 +178,9 @@ def test_create_sub_task():
   phabricator_parent_task = story_id_to_phabricator_task_map.get(create_sub_task_fields["story_id"])
   create_sub_task_fields["phid"] = phabricator_parent_task["phid"]
   sync_fields = sync_tasks.format_create_sub_task_fields(phabricator, create_sub_task_fields)
-  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, test_task_fields["creator"],
-                                                                      default_api_token)
+  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
+    username_to_phabricator_api_token_map,
+    test_task_fields["creator"],
+    default_api_token
+  )
   phabricator.create_update_subtask(sync_fields)
