@@ -118,6 +118,7 @@ class Phabricator:
       return task_list
     except Exception as e:
       logging.error(f'Failed to get phabricator tasks. Error: {e}')
+      return []
 
   def get_user_id(self, username):
     get_user_api = 'user.search'
@@ -133,6 +134,7 @@ class Phabricator:
 
     except Exception as e:
       logging.error(f'Failed to fetch user. Error: {e}')
+      return None
 
   def get_user_id_list(self, username_list):
     user_id_list = []
@@ -161,9 +163,9 @@ class Phabricator:
           logging.info(f"Successfully get column id of column {column_name}")
           return column['phid']
 
-      return None
     except Exception as e:
       logging.error(f'Failed to fetch user. Error: {e}')
+    return None
 
   def create_comment(self, comment_fields):
     update_task_api = 'maniphest.edit'
@@ -248,6 +250,7 @@ class Phabricator:
       return file_info
     except Exception as e:
       logging.error(f'Failed to upload file. Error: {e}')
+      return None
 
   def send_phabricator_request(self, method, request_data):
     for i in range(self.max_retries):
