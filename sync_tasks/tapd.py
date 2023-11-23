@@ -10,7 +10,7 @@ class Tapd:
     self.api_url = config.get(section, 'api_url')
     self.project = config.get(section, 'project')
     self.workspace_id = config.get(section, 'workspace_id')
-    self.max_retries = config.get(section, 'max_retries')
+    self.max_retries = config.getint(section, 'max_retries')
 
   def get_stories(self):
     get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'

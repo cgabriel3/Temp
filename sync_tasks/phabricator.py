@@ -12,7 +12,7 @@ class Phabricator:
     self.api_token = config.get(section, 'api_token')
     self.api_url = config.get(section, 'api_url')
     self.headers = config.get(section, 'headers')
-    self.max_retries = config.get(section, 'max_retries')
+    self.max_retries = config.getint(section, 'max_retries')
 
   def create_update_task(self, sync_fields):
     create_update_task_api = 'maniphest.edit'
