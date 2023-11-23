@@ -1,5 +1,6 @@
 import logging
 import requests
+import time
 
 
 class Tapd:
@@ -9,6 +10,7 @@ class Tapd:
     self.api_url = config.get(section, 'api_url')
     self.project = config.get(section, 'project')
     self.workspace_id = config.get(section, 'workspace_id')
+    self.max_retries = config.get(section, 'max_retries')
 
   def get_stories(self):
     get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'
@@ -73,23 +75,33 @@ class Tapd:
     return image
 
   def send_tapd_request_get(self, method):
-    try:
-      response = requests.get(self.api_url + method, timeout=30)
-      response.raise_for_status()
-      return response.json()
-
-    except requests.exceptions.RequestException as e:
-      logging.error(f'Failed to send requests to TAPD. Error: {e}')
-    except Exception as e:
-      logging.error(f'Failed to send requests to TAPD. Error: {e}')
+    for i in range(self.max_retries):
+      try:
+        response = requests.get(self.api_url + method, timeout=30)
+        response.raise_for_status()
+        return response.json()
+  
+      except requests.exceptions.RequestException as e:
+        if i < self.max_retries - 1:
+          print("Retrying...")
+          time.sleep(5)  # Wait for 5 seconds before retrying
+        else:
+          logging.error(f'Failed to send requests to TAPD. Error: {e}')
+      except Exception as e:
+        logging.error(f'Failed to send requests to TAPD. Error: {e}')
 
   def send_tapd_request_post(self, method, request_body):
-    try:
-      response = requests.post(self.api_url + method + self.project, json=request_body, timeout=30)
-      response.raise_for_status()
-      return response.json()
-
-    except requests.exceptions.RequestException as e:
-      logging.error(f'Failed to send requests to TAPD. Error: {e}')
-    except Exception as e:
-      logging.error(f'Failed to send requests to TAPD. Error: {e}')
+    for i in range(self.max_retries):
+      try:
+        response = requests.post(self.api_url + method + self.project, json=request_body, timeout=30)
+        response.raise_for_status()
+        return response.json()
+  
+      except requests.exceptions.RequestException as e:
+        if i < self.max_retries - 1:
+          print("Retrying...")
+          time.sleep(5)  # Wait for 5 seconds before retrying
+        else:
+          logging.error(f'Failed to send requests to TAPD. Error: {e}')
+      except Exception as e:
+        logging.error(f'Failed to send requests to TAPD. Error: {e}')
