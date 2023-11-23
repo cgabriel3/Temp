@@ -74,7 +74,7 @@ class Tapd:
 
   def send_tapd_request_get(self, method):
     try:
-      response = requests.get(self.api_url + method)
+      response = requests.get(self.api_url + method, timeout=30)
       response.raise_for_status()
       return response.json()
 
@@ -85,7 +85,7 @@ class Tapd:
 
   def send_tapd_request_post(self, method, request_body):
     try:
-      response = requests.post(self.api_url + method + self.project, json=request_body)
+      response = requests.post(self.api_url + method + self.project, json=request_body, timeout=30)
       response.raise_for_status()
       return response.json()
 

@@ -250,7 +250,7 @@ class Phabricator:
     try:
       phabricator_api_url = self.api_url + method
 
-      response = requests.post(phabricator_api_url, request_data)
+      response = requests.post(phabricator_api_url, request_data, timeout=30)
 
       response.raise_for_status()
       phabricator_response = response.json()
