@@ -108,9 +108,8 @@ def format_task_description(task_description, tapd_story_url, tapd, phabricator)
   for index, image in enumerate(images['src_values']):
     res = tapd.get_images(image)
     file_info = phabricator.upload_file(res)
-    if file_info:
-      file_object = phabricator.get_file(file_info)
-      task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
+    file_object = phabricator.get_file(file_info)
+    task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
 
   formatted_description = f'{task_description}\n\nTAPD Story Link: {tapd_story_url}'
   return formatted_description
