@@ -135,10 +135,27 @@ create_sub_task_fields = {
   "custom_field_49": ""
 }
 
+task_response = {
+  'object': {
+    'id': 77870,
+    'phid': 'PHID-TASK-v3mnb4ue7ew6yu344pvr'
+  },
+  'transactions': [
+    {'phid': 'PHID-XACT-TASK-mhpbgzx7vkxmfhd'},
+    {'phid': 'PHID-XACT-TASK-jf3xvapc5jpcyza'},
+    {'phid': 'PHID-XACT-TASK-wwr2xvxb3dbp4ef'},
+    {'phid': 'PHID-XACT-TASK-ts43vvkmhu5zs44'},
+    {'phid': 'PHID-XACT-TASK-qe6tbgfm5offqeo'},
+    {'phid': 'PHID-XACT-TASK-nko63uwp7v5mi4x'},
+    {'phid': 'PHID-XACT-TASK-vy2iwrtxfdnortq'},
+    {'phid': 'PHID-XACT-TASK-n425qnvzre6g6f6'},
+    {'phid': 'PHID-XACT-TASK-l4ufva52hfkf7yx'}
+  ]}
+
 
 @pytest.mark.run(order=1)
 def test_create_task():
-  sync_fields = sync_tasks.format_create_task_fields(phabricator, test_task_fields)
+  sync_fields = sync_tasks.format_create_task_fields(phabricator, test_task_fields, tapd)
   sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
     username_to_phabricator_api_token_map,
     test_task_fields["creator"],
@@ -184,3 +201,13 @@ def test_create_sub_task():
     default_api_token
   )
   phabricator.create_update_subtask(sync_fields)
+
+
+@pytest.mark.run(order=5)
+def test_reference_phabricator_task():
+  if task_response:
+    update_story_fields = {
+      'task_url': "https://code.yangqianguan.com/T" + str(task_response['object']['id']),
+      'id': test_task_fields['id']
+    }
+    tapd.edit_story(update_story_fields)

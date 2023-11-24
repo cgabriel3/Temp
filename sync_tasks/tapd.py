@@ -46,6 +46,19 @@ class Tapd:
 
     return story_list
 
+  def edit_story(self, edit_fields):
+    edit_story_api = '/api/tapd/external/common/editEntry/story/'
+    request_body = {
+      "workspace_id": self.workspace_id,
+      "id": edit_fields['story_id'],
+      "custom_field_one": edit_fields['task_url']
+    }
+    try:
+      response = self.send_tapd_request_post(edit_story_api, request_body=request_body)
+      logging.info("Update Story is success", response)
+    except Exception as e:
+      logging.error(f'Failed to get stories from Tapd. Error: {e}')
+
   def get_task(self):
     get_tasks_api = '/api/tapd/external/common/getEntryBySource/task/'
     request_body = {
@@ -88,14 +101,14 @@ class Tapd:
   def send_tapd_request_post(self, method, request_body):
     for i in range(self.max_retries):
       try:
-        response = requests.post(self.api_url + method + self.project, json=request_body, timeout=30)
+        response = requests.post(self.api_url + method + self.project, json=request_body, timeout=60)
         response.raise_for_status()
         return response.json()
 
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(5)  # Wait for 5 seconds before retrying
+          time.sleep(10)  # Wait for 5 seconds before retrying
         else:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')
       except Exception as e:

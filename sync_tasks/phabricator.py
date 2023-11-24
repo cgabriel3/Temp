@@ -77,9 +77,11 @@ class Phabricator:
     if transaction_count > 1:
       try:
         response = self.send_phabricator_request(create_update_task_api, request_data)
-        logging.info(f'Update Task Successful, Changelist: {response["result"]["transactions"]}')
+        logging.info(f'Update Task Successful, Changelist: {response}')
+        return response["result"]
       except Exception as e:
         logging.error(f'Failed to update the task. Error: {e}')
+        return None
     else:
       logging.error(f'Task not updated, No Changes.')
 
@@ -214,7 +216,7 @@ class Phabricator:
     if transaction_count > 1:
       try:
         response = self.send_phabricator_request(create_update_task_api, request_data)
-        logging.info(f'Update Subtask Successful, Changelist: {response["result"]["transactions"]}')
+        logging.info(f'Update Subtask Successful, Changelist: {response}')
       except Exception as e:
         logging.error(f'Failed to update the SubTask. Error: {e}')
     else:
@@ -257,7 +259,7 @@ class Phabricator:
       try:
         phabricator_api_url = self.api_url + method
 
-        response = requests.post(phabricator_api_url, request_data, timeout=30)
+        response = requests.post(phabricator_api_url, request_data, timeout=60)
 
         response.raise_for_status()
         phabricator_response = response.json()
@@ -268,7 +270,7 @@ class Phabricator:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(5)  # Wait for 5 seconds before retrying
+          time.sleep(10)  # Wait for 5 seconds before retrying
         else:
           logging.error(f'Failed to create request to phabricator API. Request Error: {e}')
       except Exception as e:

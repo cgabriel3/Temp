@@ -278,7 +278,13 @@ def sync_tapd_stories_phabricator_tasks(env):
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 
     sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
-    phabricator.create_update_task(sync_fields)
+    task_response = phabricator.create_update_task(sync_fields)
+    if task_response and phabricator_task_fields is None:
+      update_story_fields = {
+        'task_url': "https://code.yangqianguan.com/T" + str(task_response['object']['id']),
+        'story_id': story['id']
+      }
+      tapd.edit_story(update_story_fields)
 
   story_comment_list = tapd.get_comments()
   for comment in story_comment_list:
