@@ -8,7 +8,7 @@ import logging
 import datetime
 import os
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import html2text
 from bs4 import BeautifulSoup
 
@@ -237,10 +237,10 @@ def format_update_sub_task_fields(tapd_task_fields, phabricator_task_fields):
 
 
 def filter_task(task):
-  start_of_day = datetime.combine(datetime.now(), time.min)
+  start_of_the_previous_day = datetime.combine(datetime.now() - timedelta(1), time.min)
   story_time_format = '%Y-%m-%d %H:%M:%S'
   story_modified_time = datetime.strptime(task['Task']['modified'], story_time_format)
-  if story_modified_time > start_of_day:
+  if story_modified_time > start_of_the_previous_day:
     return True
   else:
     return False
