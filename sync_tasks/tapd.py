@@ -93,7 +93,7 @@ class Tapd:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(5)  # Wait for 5 seconds before retrying
+          time.sleep(self.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')
       except Exception as e:
@@ -109,7 +109,7 @@ class Tapd:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(self.sleep)  # Wait for 5 seconds before retrying
+          time.sleep(self.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')
       except Exception as e:

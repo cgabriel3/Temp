@@ -271,7 +271,7 @@ class Phabricator:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(self.sleep)  # Wait for 20 seconds before retrying
+          time.sleep(self.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to create request to phabricator API. Request Error: {e}')
       except Exception as e:
