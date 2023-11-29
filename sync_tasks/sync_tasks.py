@@ -252,76 +252,73 @@ def filtered_tasks(tasks):
 
 
 def sync_tapd_stories_phabricator_tasks(env):
-  try:
-    logging.info("Sync Task Start")
-    config = configparser.ConfigParser()
-    config.read(env)
+  logging.info("Sync Task Start")
+  config = configparser.ConfigParser()
+  config.read(env)
 
-    phabricator = Phabricator(config)
-    tapd = Tapd(config)
+  phabricator = Phabricator(config)
+  tapd = Tapd(config)
 
-    username_to_phabricator_api_token_map = json.loads(config['phabricator']['api_token_map'])
-    default_api_token = config['phabricator']['api_token']
+  username_to_phabricator_api_token_map = json.loads(config['phabricator']['api_token_map'])
+  default_api_token = config['phabricator']['api_token']
 
-    tapd_story_list = tapd.get_stories()
-    phabricator_task_list = phabricator.get_tasks([], None)
-    story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(
-      phabricator_task_list)
+  tapd_story_list = tapd.get_stories()
+  phabricator_task_list = phabricator.get_tasks([], None)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(
+    phabricator_task_list)
 
-    for story in tapd_story_list:
-      story_id = story['id']
-      phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
-      sync_fields = format_create_task_fields(phabricator, story, tapd)
+  for story in tapd_story_list:
+    story_id = story['id']
+    phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
+    sync_fields = format_create_task_fields(phabricator, story, tapd)
 
-      if tapd_story_status_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
-        continue
+    if tapd_story_status_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
+      continue
 
-      if phabricator_task_fields:
-        sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
+    if phabricator_task_fields:
+      sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
 
-      sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
-      task_response = phabricator.create_update_task(sync_fields)
-      if task_response and phabricator_task_fields is None:
-        update_story_fields = {
-          'task_url': "https://code.yangqianguan.com/T" + str(task_response['object']['id']),
-          'story_id': story['id']
-        }
-        tapd.edit_story(update_story_fields)
+    sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
+    task_response = phabricator.create_update_task(sync_fields)
+    if task_response and phabricator_task_fields is None:
+      update_story_fields = {
+        'task_url': "https://code.yangqianguan.com/T" + str(task_response['object']['id']),
+        'story_id': story['id']
+      }
+      tapd.edit_story(update_story_fields)
 
-    story_comment_list = tapd.get_comments()
-    for comment in story_comment_list:
-      story_id = comment['entryId']
-      phabricator_task = story_id_to_phabricator_task_map.get(story_id)
+  story_comment_list = tapd.get_comments()
+  for comment in story_comment_list:
+    story_id = comment['entryId']
+    phabricator_task = story_id_to_phabricator_task_map.get(story_id)
 
-      if phabricator_task:
-        phabricator_task_id = phabricator_task['id']
-        formatted_phabricator_comment = format_phabricator_comment(comment['description'])
-        comment_fields = {
-          'task_id': phabricator_task_id,
-          'comment': formatted_phabricator_comment,
-          'commentator_api_token': get_creator_api_token(username_to_phabricator_api_token_map, comment["author"], default_api_token)
-        }
-        phabricator.create_comment(comment_fields)
+    if phabricator_task:
+      phabricator_task_id = phabricator_task['id']
+      formatted_phabricator_comment = format_phabricator_comment(comment['description'])
+      comment_fields = {
+        'task_id': phabricator_task_id,
+        'comment': formatted_phabricator_comment,
+        'commentator_api_token': get_creator_api_token(username_to_phabricator_api_token_map, comment["author"], default_api_token)
+      }
+      phabricator.create_comment(comment_fields)
 
-    tapd_task_list = tapd.get_task()
-    filtered_tapd_task_list = filtered_tasks(tapd_task_list)
-    for tapd_task in filtered_tapd_task_list:
-      tapd_task = tapd_task['Task']
-      phabricator_parent_task = story_id_to_phabricator_task_map.get(tapd_task['story_id'])
+  tapd_task_list = tapd.get_task()
+  filtered_tapd_task_list = filtered_tasks(tapd_task_list)
+  for tapd_task in filtered_tapd_task_list:
+    tapd_task = tapd_task['Task']
+    phabricator_parent_task = story_id_to_phabricator_task_map.get(tapd_task['story_id'])
 
-      if phabricator_parent_task is None:
-        continue
+    if phabricator_parent_task is None:
+      continue
 
-      phabricator_task_fields = task_id_to_phabricator_task_map.get(tapd_task['id'])
-      sync_fields = format_create_sub_task_fields(phabricator, tapd_task)
-      if phabricator_task_fields is not None:
-        sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
-      sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
-      sync_fields['parent'] = phabricator_parent_task['phid']
-      phabricator.create_update_subtask(sync_fields)
-    logging.info("Sync Task finish")
-  except Exception as e:
-    logging.error("Sync Task error", e)
+    phabricator_task_fields = task_id_to_phabricator_task_map.get(tapd_task['id'])
+    sync_fields = format_create_sub_task_fields(phabricator, tapd_task)
+    if phabricator_task_fields is not None:
+      sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
+    sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
+    sync_fields['parent'] = phabricator_parent_task['phid']
+    phabricator.create_update_subtask(sync_fields)
+  logging.info("Sync Task finish")
 
 
 def main():
