@@ -13,6 +13,7 @@ class Phabricator:
     self.api_url = config.get(section, 'api_url')
     self.headers = config.get(section, 'headers')
     self.max_retries = config.getint(section, 'max_retries')
+    self.sleep = config.getint(section, 'sleep')
 
   def create_update_task(self, sync_fields):
     create_update_task_api = 'maniphest.edit'
@@ -270,7 +271,7 @@ class Phabricator:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(10)  # Wait for 5 seconds before retrying
+          time.sleep(self.sleep)  # Wait for 20 seconds before retrying
         else:
           logging.error(f'Failed to create request to phabricator API. Request Error: {e}')
       except Exception as e:

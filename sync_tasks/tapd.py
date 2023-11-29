@@ -11,6 +11,7 @@ class Tapd:
     self.project = config.get(section, 'project')
     self.workspace_id = config.get(section, 'workspace_id')
     self.max_retries = config.getint(section, 'max_retries')
+    self.sleep = config.getint(section, 'sleep')
 
   def get_stories(self):
     get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'
@@ -108,7 +109,7 @@ class Tapd:
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
           print("Retrying...")
-          time.sleep(10)  # Wait for 5 seconds before retrying
+          time.sleep(self.sleep)  # Wait for 5 seconds before retrying
         else:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')
       except Exception as e:
