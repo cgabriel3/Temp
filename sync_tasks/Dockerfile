@@ -3,7 +3,7 @@ FROM python:3.9.6-slim-buster
 # Set the working directory to /app
 WORKDIR /app
 
-COPY ../.. /app
+COPY . /app
 
 # Install cron command for docker container
 RUN apt-get update && apt-get install -y cron

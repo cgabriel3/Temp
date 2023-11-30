@@ -1,11 +1,10 @@
-import time
+import time as t
 from phabricator import Phabricator
 from tapd import Tapd
 import configparser
 import argparse
 import re
 import logging
-import datetime
 import os
 import json
 from datetime import datetime, time, timedelta
@@ -97,16 +96,19 @@ def insert_phabricator_image_to_task_description(tapd, phabricator, images, task
   for index, image in enumerate(images['src_values']):
     for i in range(2):
       try:
+        logging.info(f"Downloading Image {index} from TAPD")
         res = tapd.get_images(image)
+        logging.info(f"Uploading Image {index} to Phabricator")
         file_info = phabricator.upload_file(res)
         if file_info:
+          logging.info(f"Inserting Image {index} to Task Description")
           file_object = phabricator.get_file(file_info)
           task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
           break
       except Exception as e:
         if i < 2:
-          logging.info(f"Retrying insert image for the {i} time...")
-          time.sleep(tapd.sleep)  # Wait before retrying
+          logging.info(f"Retrying insert image for the {i+1} time...")
+          t.sleep(tapd.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to insert image. Error: {e}')
 
@@ -253,9 +255,10 @@ def format_update_sub_task_fields(tapd_task_fields, phabricator_task_fields):
 
 def filter_task(task):
   start_of_the_previous_day = datetime.combine(datetime.now() - timedelta(1), time.min)
+  start_of_today = datetime.combine(datetime.now(), time.min)
   story_time_format = '%Y-%m-%d %H:%M:%S'
   story_modified_time = datetime.strptime(task['Task']['modified'], story_time_format)
-  if story_modified_time > start_of_the_previous_day:
+  if start_of_the_previous_day < story_modified_time < start_of_today:
     return True
   else:
     return False
