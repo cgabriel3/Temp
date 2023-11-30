@@ -93,9 +93,30 @@ def extract_tapd_images_from_description(img_tags):
   return {'src_values': src_values, 'img_tags': img_tags}
 
 
+def insert_phabricator_image_to_task_description(tapd, phabricator, images, task_description, img_tags):
+  for index, image in enumerate(images['src_values']):
+    for i in range(2):
+      try:
+        res = tapd.get_images(image)
+        file_info = phabricator.upload_file(res)
+        if file_info:
+          file_object = phabricator.get_file(file_info)
+          task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
+          break
+      except Exception as e:
+        if i < 2:
+          logging.info(f"Retrying insert image for the {i} time...")
+          time.sleep(tapd.sleep)  # Wait before retrying
+        else:
+          logging.error(f'Failed to insert image. Error: {e}')
+
+  return task_description
+
+
 def format_task_description(task_description, tapd_story_url, tapd, phabricator):
   if task_description is None:
     return ""
+
   config = html2text.HTML2Text()
   config.body_width = 0
   config.images_as_html = True
@@ -104,13 +125,7 @@ def format_task_description(task_description, tapd_story_url, tapd, phabricator)
   soup = BeautifulSoup(task_description, 'html.parser')
   img_tags = soup.find_all('img')
   images = extract_tapd_images_from_description(img_tags)
-
-  for index, image in enumerate(images['src_values']):
-    res = tapd.get_images(image)
-    file_info = phabricator.upload_file(res)
-    if file_info:
-      file_object = phabricator.get_file(file_info)
-      task_description = task_description.replace(str(img_tags[index]).replace('"', "'"), "{" + file_object + "}")
+  task_description = insert_phabricator_image_to_task_description(tapd, phabricator, images, task_description, img_tags)
 
   formatted_description = f'{task_description}\n\nTAPD Story Link: {tapd_story_url}'
   return formatted_description
@@ -264,8 +279,7 @@ def sync_tapd_stories_phabricator_tasks(env):
 
   tapd_story_list = tapd.get_stories()
   phabricator_task_list = phabricator.get_tasks([], None)
-  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(
-    phabricator_task_list)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
 
   for story in tapd_story_list:
     story_id = story['id']

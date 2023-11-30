@@ -33,20 +33,6 @@ class Tapd:
       logging.error(f'Failed to get comments from Tapd. Error: {e}')
       return []
 
-  def get_stories_new(self):
-    get_stories_api = '/api/tapd/external/common/getEntryBySource/story/'
-    story_list = []
-    request_body = {
-      "workspace_id": self.workspace_id
-    }
-
-    try:
-      story_list = self.send_tapd_request_post(get_stories_api, request_body=request_body)
-    except Exception as e:
-      logging.error(f'Failed to get stories from Tapd. Error: {e}')
-
-    return story_list
-
   def edit_story(self, edit_fields):
     edit_story_api = '/api/tapd/external/common/editEntry/story/'
     request_body = {
@@ -88,6 +74,7 @@ class Tapd:
       try:
         response = requests.get(self.api_url + method, timeout=30)
         response.raise_for_status()
+        time.sleep(self.sleep)
         return response.json()
 
       except requests.exceptions.RequestException as e:
@@ -104,6 +91,7 @@ class Tapd:
       try:
         response = requests.post(self.api_url + method + self.project, json=request_body, timeout=60)
         response.raise_for_status()
+        time.sleep(self.sleep)
         return response.json()
 
       except requests.exceptions.RequestException as e:

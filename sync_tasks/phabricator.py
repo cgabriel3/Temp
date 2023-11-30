@@ -210,10 +210,18 @@ class Phabricator:
           request_data[request_key + '[value]'] = value
           transaction_count += 1
 
+      elif field == 'column':
+        column_id = self.get_column_id(value)
+        if column_id:
+          request_data[request_key + '[type]'] = field
+          request_data[request_key + '[value][0]'] = column_id
+          transaction_count += 1
+
       else:
         request_data[request_key + '[type]'] = field
         request_data[request_key + '[value]'] = value
         transaction_count += 1
+        
     if transaction_count > 1:
       try:
         response = self.send_phabricator_request(create_update_task_api, request_data)
@@ -265,6 +273,7 @@ class Phabricator:
         response.raise_for_status()
         phabricator_response = response.json()
         if phabricator_response['error_code'] is None and phabricator_response['error_info'] is None:
+          time.sleep(self.sleep)
           return phabricator_response
 
         raise Exception(phabricator_response["error_info"])
