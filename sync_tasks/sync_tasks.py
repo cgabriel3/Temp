@@ -46,7 +46,7 @@ tapd_task_status_to_phabricator_status = {
 def setup_logging():
   # Configure the logging module
   timestamp = datetime.now().strftime('%d-%m-%Y')
-  sync_tasks_log_file = f'{directory}/../../sync_tasks_log_{timestamp}.log'
+  sync_tasks_log_file = f'{directory}/../script_logs/sync_tasks_log_{timestamp}.log'
 
   # Configure the logger
   logging.basicConfig(
