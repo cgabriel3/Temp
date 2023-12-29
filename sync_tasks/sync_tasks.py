@@ -29,10 +29,12 @@ tapd_task_priority_to_phabricator_task_priority = {
 }
 
 tapd_story_status_to_phabricator_status = {
-  'Assess Finished': "resolved",
-  'Developing': "open",
+  "Assess Finished": "resolved",
+  "Developing": "open",
   "Suspended": "open",
-  "Exceptionally Terminated": "invalid"
+  "Exceptionally Terminated": "invalid",
+  "In Production": "resolved",
+  "Validation Finished": "resolved"
 }
 
 tapd_task_status_to_phabricator_status = {
@@ -117,7 +119,7 @@ def insert_phabricator_image_to_task_description(tapd, phabricator, images, task
 
 def format_task_description(task_description, tapd_story_url, tapd, phabricator):
   if task_description is None:
-    return ""
+    return f"TAPD Story Link: {tapd_story_url}"
 
   config = html2text.HTML2Text()
   config.body_width = 0
@@ -231,7 +233,7 @@ def format_update_task_fields(tapd_story_fields, phabricator_task_fields):
   return update_fields
 
 
-def format_create_sub_task_fields(phabricator, tapd_task):
+def format_create_sub_task_fields(phabricator, tapd_task, phabricator_parent_task):
   task_owner = phabricator.get_user_id_list(split_user_list(tapd_task['owner']))
   tapd_task = {
     'title': tapd_task['name'],
@@ -239,6 +241,8 @@ def format_create_sub_task_fields(phabricator, tapd_task):
     'owner': task_owner,
     'status': tapd_task_status_to_phabricator_status.get(tapd_task['status'], "open"),
     'priority': tapd_task_priority_to_phabricator_task_priority.get(tapd_task['priority'], "normal"),
+    'column': phabricator_parent_task['column'],
+    'parent': phabricator_parent_task['phid']
   }
   return tapd_task
 
@@ -247,6 +251,7 @@ def format_update_sub_task_fields(tapd_task_fields, phabricator_task_fields):
   update_fields = {
     'task_id': phabricator_task_fields['id']
   }
+  tapd_task_fields.pop('parent')
   for field, value in tapd_task_fields.items():
     if phabricator_task_fields[field] != value:
       update_fields[field] = value
@@ -329,11 +334,10 @@ def sync_tapd_stories_phabricator_tasks(env):
       continue
 
     phabricator_task_fields = task_id_to_phabricator_task_map.get(tapd_task['id'])
-    sync_fields = format_create_sub_task_fields(phabricator, tapd_task)
+    sync_fields = format_create_sub_task_fields(phabricator, tapd_task, phabricator_parent_task)
     if phabricator_task_fields is not None:
       sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
-    sync_fields['parent'] = phabricator_parent_task['phid']
     phabricator.create_update_subtask(sync_fields)
   logging.info("Sync Task finish")
 

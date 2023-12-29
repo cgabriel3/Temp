@@ -6,5 +6,7 @@ services:
       dockerfile: Dockerfile
     image: sync-tasks-cronjob:latest
     container_name: sync-tasks-cronjob-container
+    volumes:
+      - ./config.prod.ini:/app/config.prod.ini
     environment:
       - PYTHONUNBUFFERED=1

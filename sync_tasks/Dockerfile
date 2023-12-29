@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a cron job to run the python script (every 03:00 UTC or 10:00 GMT+7)
 # Docker container default timezone is UTC
-RUN echo "0 3 * * * /usr/local/bin/python /app/sync_tasks.py >> /var/log/cron.log 2>&1" > /etc/cron.d/sync_tasks_cronjob
+RUN echo "0 3 * * 1,2,3,4,5,6 /usr/local/bin/python /app/sync_tasks.py >> /var/log/cron.log 2>&1" > /etc/cron.d/sync_tasks_cronjob
 RUN chmod 0644 /etc/cron.d/sync_tasks_cronjob
 RUN crontab /etc/cron.d/sync_tasks_cronjob
 
