@@ -109,7 +109,7 @@ def insert_phabricator_image_to_task_description(tapd, phabricator, images, task
           break
       except Exception as e:
         if i < 2:
-          logging.info(f"Retrying insert image for the {i+1} time...")
+          logging.info(f"Retrying insert image for the {i + 1} time...")
           t.sleep(tapd.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to insert image. Error: {e}')
@@ -274,6 +274,22 @@ def filtered_tasks(tasks):
   return filtered_task_list
 
 
+def invalidate_task(phabricator_task):
+  task = {
+    'task_id': phabricator_task['phid'],
+    'status': 'invalid'
+  }
+  return task
+
+
+def extract_tapd_story_id(tapd_story_list):
+  return [story["Story"]["id"] for story in tapd_story_list]
+
+
+def extract_tapd_task_id(tapd_task_list):
+  return [task["Task"]["id"] for task in tapd_task_list]
+
+
 def sync_tapd_stories_phabricator_tasks(env):
   logging.info("Sync Task Start")
   config = configparser.ConfigParser()
@@ -285,7 +301,7 @@ def sync_tapd_stories_phabricator_tasks(env):
   username_to_phabricator_api_token_map = json.loads(config['phabricator']['api_token_map'])
   default_api_token = config['phabricator']['api_token']
 
-  tapd_story_list = tapd.get_stories()
+  tapd_story_list = tapd.get_updated_stories()
   phabricator_task_list = phabricator.get_tasks([], None)
   story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
 
@@ -324,7 +340,7 @@ def sync_tapd_stories_phabricator_tasks(env):
       }
       phabricator.create_comment(comment_fields)
 
-  tapd_task_list = tapd.get_task()
+  tapd_task_list = tapd.get_all_task()
   filtered_tapd_task_list = filtered_tasks(tapd_task_list)
   for tapd_task in filtered_tapd_task_list:
     tapd_task = tapd_task['Task']
@@ -339,6 +355,43 @@ def sync_tapd_stories_phabricator_tasks(env):
       sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
     phabricator.create_update_subtask(sync_fields)
+
+  invalidated_tasks = []
+  invalidated_subtasks = []
+
+  # Invalidate Unused Tasks:
+  tapd_all_story_list = tapd.get_all_stories()
+  tapd_story_id_set = set(extract_tapd_story_id(tapd_all_story_list))
+  phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
+  difference = phabricator_story_id_set - tapd_story_id_set
+
+  for tapd_story_id in difference:
+    phabricator_task = story_id_to_phabricator_task_map[tapd_story_id]
+    sync_fields = invalidate_task(phabricator_task)
+    sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_task['owner'], default_api_token)
+    phabricator.create_update_task(sync_fields)
+    invalidated_tasks.append(phabricator_task['id'])
+
+  # Invalidate Unused Subtask
+  tapd_task_id_list = extract_tapd_task_id(tapd_task_list)
+  tapd_task_id_set = set(tapd_task_id_list)
+  phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
+
+  difference = phabricator_task_id_set - tapd_task_id_set
+
+  for tapd_task_id in difference:
+    phabricator_subtask = task_id_to_phabricator_task_map[tapd_task_id]
+    sync_fields = invalidate_task(phabricator_subtask)
+    sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_subtask['owner'], default_api_token)
+    phabricator.create_update_task(sync_fields)
+    invalidated_subtasks.append(phabricator_subtask['id'])
+
+  if len(invalidated_tasks) > 0:
+    logging.info("Invalidated Tasks: ", invalidated_tasks)
+
+  if len(invalidated_subtasks) > 0:
+    logging.info("Invalidated Subtasks: ", invalidated_subtasks)
+
   logging.info("Sync Task finish")
 
 

@@ -13,7 +13,7 @@ class Tapd:
     self.max_retries = config.getint(section, 'max_retries')
     self.sleep = config.getint(section, 'sleep')
 
-  def get_stories(self):
+  def get_updated_stories(self):
     get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'
 
     try:
@@ -46,18 +46,31 @@ class Tapd:
     except Exception as e:
       logging.error(f'Failed to get stories from Tapd. Error: {e}')
 
-  def get_task(self):
+  def get_all_task(self):
     get_tasks_api = '/api/tapd/external/common/getEntryBySource/task/'
+    all_task_list = []
+    page = 1
     request_body = {
-      "workspace_id": self.workspace_id
+      "workspace_id": self.workspace_id,
+      "limit": 50,
+      "page": page
     }
 
-    try:
-      task_list = self.send_tapd_request_post(get_tasks_api, request_body=request_body)
-      return task_list
-    except Exception as e:
-      logging.error(f'Failed to get stories from Tapd. Error: {e}')
-      return []
+    while True:
+      try:
+        task_list = self.send_tapd_request_post(get_tasks_api, request_body=request_body)
+        all_task_list += task_list
+
+        if len(task_list) < 50:
+          break
+
+        page += 1
+        request_body["page"] = page
+      except Exception as e:
+        logging.error(f'Failed to get task from Tapd. Error: {e}')
+        return []
+
+    return all_task_list
 
   def get_images(self, image_path):
     get_image_api = f'api/tapd/external/image/{self.project}?workspaceId={self.workspace_id}&imagePath={image_path}'
@@ -68,6 +81,30 @@ class Tapd:
     except Exception as e:
       logging.error(f'Failed to get comments from Tapd. Error: {e}')
       return {}
+
+  def get_all_stories(self):
+    get_all_stories_api = f'/api/tapd/external/common/getEntryBySource/story/'
+    page = 1
+    all_story_list = []
+    request_body = {
+      "workspace_id": self.workspace_id,
+      "limit": 50,
+      "page": page
+    }
+
+    while True:
+      try:
+        story_list = self.send_tapd_request_post(get_all_stories_api, request_body=request_body)
+        all_story_list += story_list
+        if len(story_list) < 50:
+          break
+        page += 1
+        request_body["page"] = page
+      except Exception as e:
+        logging.error(f'Failed to get stories from Tapd. Error: {e}')
+        return []
+
+    return all_story_list
 
   def send_tapd_request_get(self, method):
     for i in range(self.max_retries):
@@ -96,7 +133,7 @@ class Tapd:
 
       except requests.exceptions.RequestException as e:
         if i < self.max_retries - 1:
-          logging.info(f"Retrying {method} for the {i+1} time...")
+          logging.info(f"Retrying {method} for the {i + 1} time...")
           time.sleep(self.sleep)  # Wait before retrying
         else:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')

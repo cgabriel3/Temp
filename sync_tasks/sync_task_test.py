@@ -327,3 +327,45 @@ def test_change_sub_task_category():
   sync_fields = sync_tasks.format_update_sub_task_fields(sync_fields, phabricator_task_fields)
   sync_fields['creator_api_token'] = sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
   phabricator.create_update_subtask(sync_fields)
+
+
+def test_invalidate_task():
+  task = {
+    'phid': "PHID-TASK-v3mnb4ue7ew6yu344pvr"
+  }
+  sync_fields = sync_tasks.invalidate_task(task)
+  sync_fields['creator_api_token'] = default_api_token
+  phabricator.create_update_task(sync_fields)
+
+
+def test_get_invalidated_tasks():
+  phabricator_task_list = phabricator.get_tasks([], None)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
+  invalidated_tasks = []
+  invalidated_subtasks = []
+
+  # Invalidate Unused Tasks:
+  tapd_all_story_list = tapd.get_all_stories()
+  tapd_story_id_set = set(sync_tasks.extract_tapd_story_id(tapd_all_story_list))
+  phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
+  difference = phabricator_story_id_set - tapd_story_id_set
+
+  for tapd_story_id in difference:
+    phabricator_task = story_id_to_phabricator_task_map[tapd_story_id]
+    invalidated_tasks.append(phabricator_task['id'])
+
+  # Invalidate Unused Subtask
+  tapd_task_list = tapd.get_all_task()
+
+  tapd_task_id_list = sync_tasks.extract_tapd_task_id(tapd_task_list)
+  tapd_task_id_set = set(tapd_task_id_list)
+  phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
+
+  difference = phabricator_task_id_set - tapd_task_id_set
+
+  for tapd_task_id in difference:
+    phabricator_subtask = task_id_to_phabricator_task_map[tapd_task_id]
+    invalidated_subtasks.append(phabricator_subtask['id'])
+
+  print(invalidated_tasks)
+  print(invalidated_subtasks)
