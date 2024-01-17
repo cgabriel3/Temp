@@ -309,13 +309,16 @@ def sync_tapd_stories_phabricator_tasks(env):
     story_id = story['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
     sync_fields = format_create_task_fields(phabricator, story, tapd)
+    action = "[CREATING]"
 
     if tapd_story_status_to_phabricator_status.get(story['status']) == "resolved" and phabricator_task_fields is None:
       continue
 
     if phabricator_task_fields:
       sync_fields = format_update_task_fields(sync_fields, phabricator_task_fields)
+      action = "[UPDATING]"
 
+    logging.info(action + " Phabricator Task for Story " + story_id)
     sync_fields["creator_api_token"] = get_creator_api_token(username_to_phabricator_api_token_map, story["creator"], default_api_token)
     task_response = phabricator.create_update_task(sync_fields)
     if task_response and phabricator_task_fields is None:
@@ -331,6 +334,7 @@ def sync_tapd_stories_phabricator_tasks(env):
     phabricator_task = story_id_to_phabricator_task_map.get(story_id)
 
     if phabricator_task:
+      logging.info("[CREATING] Phabricator Comment in Task " + phabricator_task['id'])
       phabricator_task_id = phabricator_task['id']
       formatted_phabricator_comment = format_phabricator_comment(comment['description'])
       comment_fields = {
@@ -342,10 +346,11 @@ def sync_tapd_stories_phabricator_tasks(env):
 
   tapd_task_list = tapd.get_all_task()
   filtered_tapd_task_list = filtered_tasks(tapd_task_list)
+
   for tapd_task in filtered_tapd_task_list:
     tapd_task = tapd_task['Task']
     phabricator_parent_task = story_id_to_phabricator_task_map.get(tapd_task['story_id'])
-
+    action = "[CREATING]"
     if phabricator_parent_task is None:
       continue
 
@@ -353,6 +358,9 @@ def sync_tapd_stories_phabricator_tasks(env):
     sync_fields = format_create_sub_task_fields(phabricator, tapd_task, phabricator_parent_task)
     if phabricator_task_fields is not None:
       sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
+      action = "[UPDATING]"
+
+    logging.info(action + " Phabricator Subtask for Task " + tapd_task['id'])
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
     phabricator.create_update_subtask(sync_fields)
 
@@ -387,10 +395,12 @@ def sync_tapd_stories_phabricator_tasks(env):
     invalidated_subtasks.append(phabricator_subtask['id'])
 
   if len(invalidated_tasks) > 0:
-    logging.info("Invalidated Tasks: ", invalidated_tasks)
+    logging.info("Invalidated Tasks: ")
+    logging.info(invalidated_tasks)
 
   if len(invalidated_subtasks) > 0:
-    logging.info("Invalidated Subtasks: ", invalidated_subtasks)
+    logging.info("Invalidated Subtasks: ")
+    logging.info(invalidated_subtasks)
 
   logging.info("Sync Task finish")
 
