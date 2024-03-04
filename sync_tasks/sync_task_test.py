@@ -369,3 +369,34 @@ def test_get_invalidated_tasks():
 
   print(invalidated_tasks)
   print(invalidated_subtasks)
+
+
+test_create_default_user_fields = {
+  "id": "1159680598001066107",
+  "workspaceId": 67664246,
+  "name": "Testing sub_task creation",
+  "description": "This is testing title",
+  "url": "https://www.tapd.cn/67664246/prong/stories/view/1159680598001066107",
+  "status": "Open",
+  "priority": "EMPTY",
+  "category": "Release Hub",
+  "creator": "advis.tasyah.mulia",
+  "created": 1698031325000,
+  "owner": "王禹丹;",
+  "developer": "christian.gabriel.isjwara;",
+  "qa": "james.surya.seputro;",
+  "modified": 1698031367000,
+  "begin": 1697990400000,
+  "due": 1697990400000
+}
+
+
+def test_create_default_user():
+  sync_fields = sync_tasks.format_create_task_fields(phabricator, test_create_default_user_fields, tapd)
+  sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
+    username_to_phabricator_api_token_map,
+    test_task_fields["creator"],
+    default_api_token
+  )
+  response = phabricator.create_update_task(sync_fields)
+  print(response)

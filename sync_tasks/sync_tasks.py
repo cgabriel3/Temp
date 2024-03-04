@@ -29,7 +29,7 @@ tapd_task_priority_to_phabricator_task_priority = {
 }
 
 tapd_story_status_to_phabricator_status = {
-  "Assess Finished": "resolved",
+  "Assess Finished": "open",
   "Developing": "open",
   "Suspended": "open",
   "Exceptionally Terminated": "invalid",

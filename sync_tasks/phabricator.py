@@ -14,6 +14,7 @@ class Phabricator:
     self.headers = config.get(section, 'headers')
     self.max_retries = config.getint(section, 'max_retries')
     self.sleep = config.getint(section, 'sleep')
+    self.default_user = config.get(section, 'default_user')
 
   def create_update_task(self, sync_fields):
     create_update_task_api = 'maniphest.edit'
@@ -148,6 +149,14 @@ class Phabricator:
       else:
         logging.error(f'Failed to fetch user with username {username}')
 
+    if len(user_id_list) == 0:
+      username = self.default_user
+      user_id = self.get_user_id(username)
+      if user_id:
+        user_id_list.append(user_id)
+      else:
+        logging.error(f'Failed to fetch user with username {username}')
+        
     return user_id_list
 
   def get_column_id(self, column_name):
