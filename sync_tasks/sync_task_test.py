@@ -194,7 +194,7 @@ def test_create_sub_task():
   story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
   phabricator_parent_task = story_id_to_phabricator_task_map.get(create_sub_task_fields["story_id"])
   create_sub_task_fields["phid"] = phabricator_parent_task["phid"]
-  sync_fields = sync_tasks.format_create_sub_task_fields(phabricator, create_sub_task_fields)
+  sync_fields = sync_tasks.format_create_sub_task_fields(phabricator, create_sub_task_fields, phabricator_parent_task, tapd)
   sync_fields["creator_api_token"] = sync_tasks.get_creator_api_token(
     username_to_phabricator_api_token_map,
     test_task_fields["creator"],
@@ -322,8 +322,8 @@ def test_change_sub_task_category():
     'column': None,
     'status': "open"
   }
-  
-  sync_fields = sync_tasks.format_create_sub_task_fields(phabricator, tapd_task, phabricator_parent_task)
+
+  sync_fields = sync_tasks.format_create_sub_task_fields(phabricator, tapd_task, phabricator_parent_task, tapd)
   sync_fields = sync_tasks.format_update_sub_task_fields(sync_fields, phabricator_task_fields)
   sync_fields['creator_api_token'] = sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, tapd_task['creator'], default_api_token)
   phabricator.create_update_subtask(sync_fields)
@@ -345,7 +345,7 @@ def test_get_invalidated_tasks():
   invalidated_subtasks = []
 
   # Invalidate Unused Tasks:
-  tapd_all_story_list = tapd.get_all_stories()
+  tapd_all_story_list = tapd.get_all_stories(sync_tasks.get_date_time_start_of_previous_day())
   tapd_story_id_set = set(sync_tasks.extract_tapd_story_id(tapd_all_story_list))
   phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
   difference = phabricator_story_id_set - tapd_story_id_set
@@ -400,3 +400,27 @@ def test_create_default_user():
   )
   response = phabricator.create_update_task(sync_fields)
   print(response)
+
+
+def test_get_comments():
+  story_comment_list = tapd.get_comments()
+  for story_comment in story_comment_list:
+    print(story_comment)
+
+
+def test_get_stories():
+  tapd_all_story_list = tapd.get_updated_stories()
+  for story in tapd_all_story_list:
+    print(story)
+    break
+
+
+def test_create_comments():
+  story_comment_list = tapd.get_comments()
+  for story_comment in story_comment_list:
+    comment_fields = {
+      'task_id': "78071",
+      'comment': sync_tasks.format_phabricator_comment(story_comment['description']),
+      'commentator_api_token': sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, "christian.gabriel.isjwara", default_api_token)
+    }
+    phabricator.create_comment(comment_fields)

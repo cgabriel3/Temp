@@ -1,3 +1,4 @@
+import json
 import logging
 import requests
 import time
@@ -12,6 +13,10 @@ class Tapd:
     self.workspace_id = config.get(section, 'workspace_id')
     self.max_retries = config.getint(section, 'max_retries')
     self.sleep = config.getint(section, 'sleep')
+    self.base_story_url = config.get(section, 'base_story_url')
+    self.doc_template_id = config.get(section, 'doc_template_id')
+    self.category_id_name_map = config.get(section, 'category_id_to_name_map')
+    self.base_image_url = config.get(section, 'base_image_url')
 
   def get_updated_stories(self):
     get_stories_api = f'api/tapd/external/story/getStoryBySource?source={self.project}'
@@ -76,20 +81,23 @@ class Tapd:
     get_image_api = f'api/tapd/external/image/{self.project}?workspaceId={self.workspace_id}&imagePath={image_path}'
 
     try:
+      if not self.check_if_image_tapd_url(image_path):
+        raise ValueError(f'Not a TAPD Image URL {image_path}')
       response = self.send_tapd_request_get(get_image_api)
       return response['data']['Attachment']['download_url']
     except Exception as e:
-      logging.error(f'Failed to get comments from Tapd. Error: {e}')
+      logging.error(f'Failed to get image from Tapd with URL {get_image_api}. Error: {e}')
       return {}
 
-  def get_all_stories(self):
+  def get_all_stories(self, modified_time):
     get_all_stories_api = f'/api/tapd/external/common/getEntryBySource/story/'
     page = 1
     all_story_list = []
     request_body = {
       "workspace_id": self.workspace_id,
       "limit": 50,
-      "page": page
+      "page": page,
+      "modified": modified_time
     }
 
     while True:
@@ -139,3 +147,19 @@ class Tapd:
           logging.error(f'Failed to send requests to TAPD. Error: {e}')
       except Exception as e:
         logging.error(f'Failed to send requests to TAPD. Error: {e}')
+
+  def generate_story_url(self, story_id):
+    workspace_id_key = "workspace_id"
+    story_url = self.base_story_url
+    story_url = story_url.replace(workspace_id_key, self.workspace_id)
+    return story_url + story_id
+
+  def is_not_doc_template(self, template_id):
+    return self.doc_template_id == template_id
+
+  def get_category_name_from_category_id(self, category_id):
+    category_name_to_id_map = json.loads(self.category_id_name_map)
+    return category_name_to_id_map.get(category_id)
+
+  def check_if_image_tapd_url(self, image_url):
+    return image_url.startswith(self.base_image_url)
