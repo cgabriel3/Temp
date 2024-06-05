@@ -86,7 +86,7 @@ class Tapd:
       response = self.send_tapd_request_get(get_image_api)
       return response['data']['Attachment']['download_url']
     except Exception as e:
-      logging.error(f'Failed to get image from Tapd with URL {get_image_api}. Error: {e}')
+      logging.error(f'Failed to get image from Tapd with URL {image_path}. Error: {e}')
       return {}
 
   def get_all_stories(self, modified_time):
