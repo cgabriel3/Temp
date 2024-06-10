@@ -81,7 +81,6 @@ class Tapd:
     try:
       if not self.check_if_image_tapd_url(image_path):
         raise ValueError(f'Not a TAPD Image URL {image_path}')
-      image_path = image_path.replace("https://file.tapd.cn/", "")
       get_image_api = f'api/tapd/external/image/{self.project}?workspaceId={self.workspace_id}&imagePath={image_path}'
       response = self.send_tapd_request_get(get_image_api)
       return response['data']['Attachment']['download_url']
@@ -162,4 +161,5 @@ class Tapd:
     return category_name_to_id_map.get(category_id)
 
   def check_if_image_tapd_url(self, image_url):
-    return image_url.startswith(self.base_image_url)
+    image_url = image_url.replace(self.base_image_url, "")
+    return image_url.startswith("/tfl/")
