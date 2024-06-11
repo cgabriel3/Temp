@@ -358,7 +358,7 @@ def sync_tapd_stories_phabricator_tasks(env):
   story_comment_list = tapd.get_comments()
   if len(story_comment_list) == 0:
     logging.info("There are no comments on TAPD today")
-    
+
   for comment in story_comment_list:
     story_id = comment['entryId']
     phabricator_task = story_id_to_phabricator_task_map.get(story_id)
@@ -388,40 +388,43 @@ def sync_tapd_stories_phabricator_tasks(env):
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_sub_story_content['creator'], default_api_token)
     phabricator.create_update_subtask(sync_fields)
 
-  # invalidated_tasks = []
-  # invalidated_subtasks = []
-  #
-  # # Invalidate Unused Tasks:
-  # tapd_story_id_set = set(extract_tapd_story_id(tapd_all_story_list))
-  # phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
-  # difference = phabricator_story_id_set - tapd_story_id_set
-  #
-  # for tapd_story_id in difference:
-  #   phabricator_task = story_id_to_phabricator_task_map[tapd_story_id]
-  #   sync_fields = invalidate_task(phabricator_task)
-  #   sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_task['owner'], default_api_token)
-  #   phabricator.create_update_task(sync_fields)
-  #   invalidated_tasks.append(phabricator_task['id'])
+  # Check if there are any invalidated task on Monday
+  if datetime.today().weekday() == 0:
+    invalidated_tasks = []
+    invalidated_subtasks = []
+    tapd_all_story_list = tapd.get_all_stories()
+    tapd_story_list, tapd_sub_story_list = extract_tapd_story_and_sub_story(tapd_all_story_list)
+    # Invalidate Unused Tasks:
+    tapd_story_id_set = set(extract_tapd_story_id(tapd_story_list))
+    phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
+    difference = phabricator_story_id_set - tapd_story_id_set
 
-  # # Invalidate Unused Subtask
-  # tapd_task_id_list = extract_tapd_task_id(tapd_sub_story_list)
-  # tapd_task_id_set = set(tapd_task_id_list)
-  # phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
-  #
-  # difference = phabricator_task_id_set - tapd_task_id_set
-  #
-  # for tapd_task_id in difference:
-  #   phabricator_subtask = task_id_to_phabricator_task_map[tapd_task_id]
-  #   sync_fields = invalidate_task(phabricator_subtask)
-  #   sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_subtask['owner'], default_api_token)
-  #   phabricator.create_update_task(sync_fields)
-  #   invalidated_subtasks.append(phabricator_subtask['id'])
-  #
-  # if len(invalidated_tasks) > 0:
-  #   logging.info("Invalidated Tasks: ", invalidated_tasks)
-  #
-  # if len(invalidated_subtasks) > 0:
-  #   logging.info("Invalidated Subtasks: ", invalidated_subtasks)
+    for tapd_story_id in difference:
+      phabricator_task = story_id_to_phabricator_task_map[tapd_story_id]
+      sync_fields = invalidate_task(phabricator_task)
+      sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_task['owner'], default_api_token)
+      phabricator.create_update_task(sync_fields)
+      invalidated_tasks.append(phabricator_task['id'])
+
+    # Invalidate Unused Subtask
+    tapd_task_id_list = extract_tapd_task_id(tapd_sub_story_list)
+    tapd_task_id_set = set(tapd_task_id_list)
+    phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
+
+    difference = phabricator_task_id_set - tapd_task_id_set
+
+    for tapd_task_id in difference:
+      phabricator_subtask = task_id_to_phabricator_task_map[tapd_task_id]
+      sync_fields = invalidate_task(phabricator_subtask)
+      sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_subtask['owner'], default_api_token)
+      phabricator.create_update_task(sync_fields)
+      invalidated_subtasks.append(phabricator_subtask['id'])
+
+    if len(invalidated_tasks) > 0:
+      logging.info("Invalidated Tasks: ", invalidated_tasks)
+
+    if len(invalidated_subtasks) > 0:
+      logging.info("Invalidated Subtasks: ", invalidated_subtasks)
 
   logging.info("Sync Task finish")
 

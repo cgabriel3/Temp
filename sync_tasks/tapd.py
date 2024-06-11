@@ -88,16 +88,18 @@ class Tapd:
       logging.error(f'Failed to get image from Tapd with URL {image_path}. Error: {e}')
       return {}
 
-  def get_all_stories(self, modified_time):
+  def get_all_stories(self, modified_time=None):
     get_all_stories_api = f'/api/tapd/external/common/getEntryBySource/story/'
     page = 1
     all_story_list = []
     request_body = {
       "workspace_id": self.workspace_id,
       "limit": 50,
-      "page": page,
-      "modified": modified_time
+      "page": page
     }
+
+    if modified_time:
+      request_body["modified"] = modified_time
 
     while True:
       try:
