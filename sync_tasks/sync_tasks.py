@@ -145,12 +145,19 @@ def format_phabricator_comment(description):
   return f'{remove_html_tags(description)}'
 
 
-def create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list):
+def create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list, tapd_id_to_story_list, tapd_id_to_sub_story_list):
   tapd_story_id_to_phabricator_task = {}
   tapd_task_id_to_phabricator_task = {}
   for task in phabricator_task_list:
-    tapd_story_id = extract_tapd_story_id_from_text(task['fields']['description']['raw'])
-    tapd_task_id = extract_tapd_task_id_from_text(task['fields']['description']['raw'])
+    tapd_id = extract_tapd_story_id_from_text(task['fields']['description']['raw'])
+    tapd_story_id = None
+    tapd_task_id = None
+    if tapd_id_to_story_list.get(tapd_id) is not None:
+      tapd_story_id = tapd_id
+
+    if tapd_id_to_sub_story_list.get(tapd_id):
+      tapd_task_id = tapd_id
+
     if tapd_story_id is not None or tapd_task_id is not None:
       task_fields = task['fields']
 
@@ -318,6 +325,37 @@ def get_date_time_end_of_previous_day():
   return end_of_day
 
 
+def create_story_id_to_story_map(tapd_story_list):
+  return {item['Story']['id']: item for item in tapd_story_list}
+
+
+def update_story_diff(tapd, tapd_story, tapd_sub_story):
+  story_diff_list_str = tapd_story.get("custom_field_six")
+  story_diff_set = set()
+  original_story_diff_set = set()
+  if story_diff_list_str is not None:
+    diff_list = story_diff_list_str.split()
+    story_diff_set = set(diff_list)
+    original_story_diff_set = set(diff_list)
+
+  sub_story_diff_list_str = tapd_sub_story.get("custom_field_six")
+  if sub_story_diff_list_str is None:
+    return
+
+  sub_story_diff_set = set(sub_story_diff_list_str.split())
+  combined_diff_set = sub_story_diff_set.union(story_diff_set)
+
+  if story_diff_set == original_story_diff_set:
+    return
+  
+  update_story_diff_fields = {
+    "story_id": tapd_story['id'],
+    "story_diff": " ".join(combined_diff_set)
+  }
+  tapd.edit_story(update_story_diff_fields)
+  return
+
+
 def sync_tapd_stories_phabricator_tasks(env):
   logging.info("Sync Task Start")
   config = configparser.ConfigParser()
@@ -330,11 +368,12 @@ def sync_tapd_stories_phabricator_tasks(env):
   default_api_token = config['phabricator']['api_token']
   tapd_all_story_list = tapd.get_all_stories(get_date_time_start_of_previous_day())
   tapd_story_list, tapd_sub_story_list = extract_tapd_story_and_sub_story(tapd_all_story_list)
+  tapd_story_id_to_story_map = create_story_id_to_story_map(tapd_story_list)
+  tapd_sub_story_id_to_sub_story_map = create_story_id_to_story_map(tapd_sub_story_list)
   phabricator_task_list = phabricator.get_tasks([], None)
-  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list, tapd_story_id_to_story_map, tapd_sub_story_id_to_sub_story_map)
 
-  updated_tapd_story_list = get_updated_story(tapd_story_list)
-  for story in updated_tapd_story_list:
+  for story in tapd_story_list:
     story_content = story['Story']
     story_id = story_content['id']
     phabricator_task_fields = story_id_to_phabricator_task_map.get(story_id)
@@ -373,8 +412,7 @@ def sync_tapd_stories_phabricator_tasks(env):
       }
       phabricator.create_comment(comment_fields)
 
-  updated_tapd_sub_story_list = get_updated_story(tapd_sub_story_list)
-  for tapd_sub_story in updated_tapd_sub_story_list:
+  for tapd_sub_story in tapd_sub_story_list:
     tapd_sub_story_content = tapd_sub_story['Story']
     phabricator_parent_task = story_id_to_phabricator_task_map.get(tapd_sub_story_content['ancestor_id'])
 
@@ -385,6 +423,10 @@ def sync_tapd_stories_phabricator_tasks(env):
     sync_fields = format_create_sub_task_fields(phabricator, tapd_sub_story_content, phabricator_parent_task, tapd)
     if phabricator_task_fields is not None:
       sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
+      if tapd_sub_story['custom_field_six'] is not None:
+        tapd_story = tapd_story_id_to_story_map.get(tapd_sub_story_content['ancestor_id'])
+        update_story_diff(tapd, tapd_story, tapd_sub_story_content)
+
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_sub_story_content['creator'], default_api_token)
     phabricator.create_update_subtask(sync_fields)
 
@@ -400,21 +442,23 @@ def sync_tapd_stories_phabricator_tasks(env):
     difference = phabricator_story_id_set - tapd_story_id_set
 
     for tapd_story_id in difference:
-      phabricator_task = story_id_to_phabricator_task_map[tapd_story_id]
+      phabricator_task = story_id_to_phabricator_task_map.get(tapd_story_id)
+      if phabricator_task is None:
+        continue
       sync_fields = invalidate_task(phabricator_task)
       sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_task['owner'], default_api_token)
       phabricator.create_update_task(sync_fields)
       invalidated_tasks.append(phabricator_task['id'])
 
     # Invalidate Unused Subtask
-    tapd_task_id_list = extract_tapd_task_id(tapd_sub_story_list)
-    tapd_task_id_set = set(tapd_task_id_list)
+    tapd_task_id_set = set(extract_tapd_story_id(tapd_sub_story_list))
     phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
-
     difference = phabricator_task_id_set - tapd_task_id_set
 
     for tapd_task_id in difference:
-      phabricator_subtask = task_id_to_phabricator_task_map[tapd_task_id]
+      phabricator_subtask = task_id_to_phabricator_task_map.get(tapd_task_id)
+      if phabricator_subtask is None:
+        continue
       sync_fields = invalidate_task(phabricator_subtask)
       sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, phabricator_subtask['owner'], default_api_token)
       phabricator.create_update_task(sync_fields)

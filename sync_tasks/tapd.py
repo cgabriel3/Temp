@@ -42,9 +42,15 @@ class Tapd:
     edit_story_api = '/api/tapd/external/common/editEntry/story/'
     request_body = {
       "workspace_id": self.workspace_id,
-      "id": edit_fields['story_id'],
-      "custom_field_one": edit_fields['task_url']
+      "id": edit_fields['story_id']
     }
+
+    if edit_fields.get('task_url') is not None:
+      request_body["custom_field_one"] = edit_fields['task_url']
+
+    if edit_fields['story_diff'] is not None:
+      request_body["custom_field_six"] = edit_fields['story_diff']
+
     try:
       response = self.send_tapd_request_post(edit_story_api, request_body=request_body)
       logging.info("Update Story is success", response)
@@ -164,4 +170,4 @@ class Tapd:
 
   def check_if_image_tapd_url(self, image_url):
     image_url = image_url.replace(self.base_image_url, "")
-    return image_url.startswith("/tfl/")
+    return image_url.startswith("/tfl/", "//tfl/")

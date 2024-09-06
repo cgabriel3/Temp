@@ -179,7 +179,7 @@ def test_update_task():
 @pytest.mark.run(order=3)
 def test_create_comment():
   phabricator_task_list = phabricator.get_tasks([], None)
-  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list, {}, {})
   create_comment_fields = {
     'task_id': story_id_to_phabricator_task_map[test_task_fields['id']]['id'],
     'comment': "This is a comment made from Unit Testing",
@@ -424,3 +424,66 @@ def test_create_comments():
       'commentator_api_token': sync_tasks.get_creator_api_token(username_to_phabricator_api_token_map, "christian.gabriel.isjwara", default_api_token)
     }
     phabricator.create_comment(comment_fields)
+
+
+def test_invalidate_task_run():
+  invalidated_tasks = []
+  invalidated_subtasks = []
+  tapd_all_story_list = tapd.get_all_stories(sync_tasks.get_date_time_start_of_previous_day())
+  tapd_story_list, tapd_sub_story_list = sync_tasks.extract_tapd_story_and_sub_story(tapd_all_story_list)
+  tapd_id_to_story_list = sync_tasks.create_story_id_to_story_map(tapd_story_list)
+  tapd_id_to_sub_story_list = sync_tasks.create_story_id_to_story_map(tapd_sub_story_list)
+  phabricator_task_list = phabricator.get_tasks([], None)
+  story_id_to_phabricator_task_map, task_id_to_phabricator_task_map = sync_tasks.create_tapd_story_and_tapd_task_to_phabricator_task_mapping(phabricator_task_list, tapd_id_to_story_list, tapd_id_to_sub_story_list)
+  # Invalidate Unused Tasks:
+  tapd_story_id_set = set(sync_tasks.extract_tapd_story_id(tapd_story_list))
+  phabricator_story_id_set = set(story_id_to_phabricator_task_map.keys())
+  difference = phabricator_story_id_set - tapd_story_id_set
+
+  for tapd_story_id in difference:
+    phabricator_task = story_id_to_phabricator_task_map.get(tapd_story_id)
+    if phabricator_task is None:
+      continue
+    invalidated_tasks.append(phabricator_task['id'])
+
+  # Invalidate Unused Subtask
+  tapd_task_id_set = set(sync_tasks.extract_tapd_story_id(tapd_sub_story_list))
+  phabricator_task_id_set = set(task_id_to_phabricator_task_map.keys())
+  difference = phabricator_task_id_set - tapd_task_id_set
+
+  for tapd_task_id in difference:
+    phabricator_subtask = task_id_to_phabricator_task_map.get(tapd_task_id)
+    if phabricator_subtask is None:
+      continue
+    invalidated_subtasks.append(phabricator_subtask['id'])
+
+  if len(invalidated_tasks) > 0:
+    print("Invalidated Tasks: ", invalidated_tasks)
+
+  if len(invalidated_subtasks) > 0:
+    print("Invalidated Subtasks: ", invalidated_subtasks)
+
+
+def test_update_diff_story_base_story_is_empty():
+  story = {
+    "id": "1159680598001155033"
+  }
+
+  sub_story = {
+    "custom_field_six": "https://code.yangqianguan.com/D412933 https://code.yangqianguan.com/D413121 https://code.yangqianguan.com/D413277"
+  }
+
+  sync_tasks.update_story_diff(tapd, story, sub_story)
+
+
+def test_update_diff_story_base_story_is_not_empty():
+  story = {
+    "id": "1159680598001155033",
+    "custom_field_six": "https://code.yangqianguan.com/D412933 https://code.yangqianguan.com/D413121 https://code.yangqianguan.com/D413277"
+  }
+
+  sub_story = {
+    "custom_field_six": "https://code.yangqianguan.com/D412933 https://code.yangqianguan.com/D413121 https://code.yangqianguan.com/D413277 https://code.yangqianguan.com/D413279 https://code.yangqianguan.com/D413275"
+  }
+
+  sync_tasks.update_story_diff(tapd, story, sub_story)
