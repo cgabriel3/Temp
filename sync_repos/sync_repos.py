@@ -10,7 +10,9 @@ from logging.handlers import RotatingFileHandler
 import argparse
 import re
 
-sys.path.append("lib")
+sync_repos_path = os.path.dirname(__file__)
+lib_path = os.path.join(sync_repos_path, 'lib')
+sys.path.append(lib_path)
 from easygoogletranslate import EasyGoogleTranslate
 from git import Repo
 
@@ -22,10 +24,11 @@ INDO_BACKEND_EMAILS = [
   "christian.gabriel.isjwara@fintopia.tech",
   "dewy.yuliana@fintopia.tech",
   "himawan.saputra.utama@fintopia.tech",
-  "thomas.edisson.runkat@fintopia.tech",
-  "advis.tasyah.mulia@fintopia.tech",
   "i.gede.agung.krisna.pamungkas@fintopia.tech",
-  "andrey.martin@fintopia.tech"
+  "andrey.martin@fintopia.tech",
+  "hafiz.siregar@fintopia.tech",
+  "aflah.nadhif@fintopia.tech",
+  "mario.claudius@fintopia.tech"
 ]
 
 INDO_FRONTEND_EMAILS = [
@@ -43,21 +46,54 @@ INDO_IOS_EMAILS = [
 ]
 
 INDO_DEVOPS_EMAILS = [
-  "muhammad.maruf.rahman@fintopia.tech",
+  "danny.restu@fintopia.tech",
+  "steven.agustinus@fintopia.tech"
 ]
 
+INDO_ENGINEER_EMAIL_TO_JOIN_DATE_MAP = {
+  "christian.gabriel.isjwara@fintopia.tech": "2023-02-23",
+  "dewy.yuliana@fintopia.tech": "2022-10-03",
+  "himawan.saputra.utama@fintopia.tech": "2022-11-07",
+  "i.gede.agung.krisna.pamungkas@fintopia.tech": "2022-11-07",
+  "andrey.martin@fintopia.tech": "2023-03-20",
+  "hafiz.siregar@fintopia.tech": "2024-01-24",
+  "aflah.nadhif@fintopia.tech": "2024-07-26",
+  "mario.claudius@fintopia.tech": "2024-07-29",
+  "ega.frandika@fintopia.tech": "2022-07-19",
+  "dante.clericuzio@fintopia.tech": "2022-10-06",
+  "kenneth.k.chang@fintopia.tech": "2023-06-12",
+  "m.ridho.saputra@fintopia.tech": "2023-05-08",
+  "barry.juans@fintopia.tech": "2023-04-27",
+  "danny.restu@fintopia.tech": "2023-12-21",
+  "steven.agustinus@fintopia.tech": "2024-06-10"
+}
 
-def replace_author(repo_type, author_email):
+
+def compare_engineer_join_date_before_commit_date(engineer_email, commit_date):
+  return INDO_ENGINEER_EMAIL_TO_JOIN_DATE_MAP.get(engineer_email) < commit_date
+
+
+def replace_author(repo_type, author_email, commit_authored_date):
   if repo_type == 'backend' and author_email not in INDO_BACKEND_EMAILS:
-    return INDO_BACKEND_EMAILS[random.randint(0, len(INDO_BACKEND_EMAILS) - 1)]
+    while True:
+      engineer_email = INDO_BACKEND_EMAILS[random.randint(0, len(INDO_BACKEND_EMAILS) - 1)]
+      if compare_engineer_join_date_before_commit_date(engineer_email, commit_authored_date):
+        return engineer_email
+
   elif repo_type == 'frontend' and author_email not in INDO_FRONTEND_EMAILS:
     return INDO_FRONTEND_EMAILS[random.randint(0, len(INDO_FRONTEND_EMAILS) - 1)]
+
   elif repo_type == 'android' and author_email not in INDO_ANDROID_EMAILS:
     return INDO_ANDROID_EMAILS[random.randint(0, len(INDO_ANDROID_EMAILS) - 1)]
+
   elif repo_type == 'ios' and author_email not in INDO_IOS_EMAILS:
     return INDO_IOS_EMAILS[random.randint(0, len(INDO_IOS_EMAILS) - 1)]
+
   elif repo_type == 'devops' and author_email not in INDO_DEVOPS_EMAILS:
-    return INDO_DEVOPS_EMAILS[random.randint(0, len(INDO_DEVOPS_EMAILS) - 1)]
+    while True:
+      engineer_email = INDO_DEVOPS_EMAILS[random.randint(0, len(INDO_DEVOPS_EMAILS) - 1)]
+      if compare_engineer_join_date_before_commit_date(engineer_email, commit_authored_date):
+        return engineer_email
   else:
     return author_email
 
@@ -117,6 +153,10 @@ def format_commit_message(commit_message):
   # Remove title prefixes, e.g. [ec][mex]
   title_pattern = r'^\s*\[.*\]\s*(.+\n)'
   commit_message = re.sub(title_pattern, r'\1', commit_message)
+
+  # Add new line before summary
+  summary_pattern = 'Summary'
+  commit_message = re.sub(rf'{summary_pattern}.*', rf'\n{summary_pattern}', commit_message)
 
   # Change reviewers and remove diff reference
   keywords = ['Reviewers:', 'Reviewed By:', 'Subscribers:']
@@ -186,7 +226,6 @@ def extract_commits_and_push(repo_type, commits, source_repo_path, target_repo_p
 
       # Checkout to commit
       checkout_commit_or_branch(source_repo_path, commit.hexsha)
-
       # Copy all files from ec to ec-experiment
       for item in os.listdir(source_repo_path):
         item_path = os.path.join(source_repo_path, item)
@@ -194,9 +233,6 @@ def extract_commits_and_push(repo_type, commits, source_repo_path, target_repo_p
           subprocess.run(['cp', '-R', item_path, target_repo_path], check=True)
 
       # Git commit
-      author_email = commit.author.email
-      author_email = replace_author(repo_type, author_email)
-
       commit_message = format_commit_message(commit.message)
 
       command = ["git", "show", "--format=%ci", "--no-patch", commit.hexsha]
@@ -205,6 +241,8 @@ def extract_commits_and_push(repo_type, commits, source_repo_path, target_repo_p
       command = ["git", "show", "-s", "--format=%ad", "--date=iso", commit.hexsha]
       commit_authored_date = subprocess.check_output(command, cwd=source_repo_path, text=True).strip()
 
+      author_email = commit.author.email
+      author_email = replace_author(repo_type, author_email, commit_authored_date)
       author_name = author_email[:author_email.index('@')]
       git_commit(author_name, author_email, commit_message, commit_date, commit_authored_date, target_repo_path)
 
@@ -311,7 +349,7 @@ def setup_logging(log_file):
 
 
 def load_config(env):
-  config.read(f'config.{env}.ini')
+  config.read(f'{sync_repos_path}/config.{env}.ini')
   return config
 
 

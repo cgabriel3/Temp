@@ -1,0 +1,12 @@
+version: '3'
+services:
+  activity-report-cronjob:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: activity-report-cronjob:latest
+    container_name: activity-report-cronjob-container
+    volumes:
+      - ./config.prod.ini:/app/config.prod.ini
+    environment:
+      - PYTHONUNBUFFERED=1
