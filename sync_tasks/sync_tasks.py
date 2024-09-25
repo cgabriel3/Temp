@@ -423,9 +423,10 @@ def sync_tapd_stories_phabricator_tasks(env):
     sync_fields = format_create_sub_task_fields(phabricator, tapd_sub_story_content, phabricator_parent_task, tapd)
     if phabricator_task_fields is not None:
       sync_fields = format_update_sub_task_fields(sync_fields, phabricator_task_fields)
-      if tapd_sub_story['custom_field_six'] is not None:
-        tapd_story = tapd_story_id_to_story_map.get(tapd_sub_story_content['ancestor_id'])
-        update_story_diff(tapd, tapd_story, tapd_sub_story_content)
+      
+    if tapd_sub_story['custom_field_six'] is not None:
+      tapd_story = tapd_story_id_to_story_map.get(tapd_sub_story_content['ancestor_id'])
+      update_story_diff(tapd, tapd_story, tapd_sub_story_content)
 
     sync_fields['creator_api_token'] = get_creator_api_token(username_to_phabricator_api_token_map, tapd_sub_story_content['creator'], default_api_token)
     phabricator.create_update_subtask(sync_fields)
