@@ -22,6 +22,8 @@ tapd = None
 phabricator = None
 
 directory = os.path.dirname(__file__)
+report_directory = None
+log_directory = None
 
 TAPD_TASK_DATA = []
 
@@ -482,6 +484,7 @@ def send_email_with_attachment(config, filename):
       server.login(sender_email, sender_password)
       text = msg.as_string()
       server.sendmail(sender_email, receiver_email, text)
+      logging.info("Email successfully sent to " + receiver_email)
     except Exception as e:
       logging.info("Fail to send email, Error: " + str(e))
     finally:
@@ -498,7 +501,7 @@ def get_current_date_string():
 
 
 def generate_filename():
-  return f'{directory}/../../reports/activity_report_{get_current_date_string()}.xlsx'
+  return f'{directory}{report_directory}activity_report_{get_current_date_string()}.xlsx'
 
 
 def get_start_of_week_time():
@@ -532,7 +535,7 @@ def get_env(env):
 def setup_logging():
   # Configure the logging module
   timestamp = datetime.now().strftime('%d-%m-%Y')
-  sync_tasks_log_file = f'{directory}/../script_logs/activity_report_log_{timestamp}.log'
+  sync_tasks_log_file = f'{directory}{log_directory}activity_report_log_{timestamp}.log'
 
   # Configure the logger
   logging.basicConfig(
@@ -542,31 +545,41 @@ def setup_logging():
   )
 
 
-def setup_libraries(config):
+def setup_constants(config):
   global tapd
   tapd = Tapd(config)
 
   global phabricator
   phabricator = Phabricator(config)
 
+  global report_directory
+  report_directory = config.get("DEFAULT", "report_directory")
 
-def report_weekly_activity(env):
-  logging.info("Setup configs")
-  config = configparser.ConfigParser()
-  config.read(env)
-  setup_libraries(config)
+  global log_directory
+  log_directory = config.get("DEFAULT", "log_directory")
+
+
+def report_weekly_activity(config):
+  logging.info("----Activity Report Script Start----")
 
   filename = generate_filename()
   generate_workbook(filename)
   send_email_with_attachment(config, filename)
+  logging.info("----Activity Report Script Finish----")
 
 
 def main():
   parser = argparse.ArgumentParser(description='Sync Task Script')
   parser.add_argument('--env', help='Environment')
   args = parser.parse_args()
+  env = get_env(args.env)
+  config = configparser.ConfigParser()
+  config.read(env)
+
+  setup_constants(config)
   setup_logging()
-  report_weekly_activity(get_env(args.env))
+  logging.info("Setup configs")
+  report_weekly_activity(config)
 
 
 main()

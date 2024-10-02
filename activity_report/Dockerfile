@@ -18,6 +18,7 @@ RUN chmod 0644 /etc/cron.d/activity_report_cronjob
 RUN crontab /etc/cron.d/activity_report_cronjob
 
 RUN mkdir /script_logs
+RUN mkdir /reports
 
 # Run the command on container startup
 CMD ["cron", "-f"]

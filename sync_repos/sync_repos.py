@@ -10,7 +10,8 @@ from logging.handlers import RotatingFileHandler
 import argparse
 import re
 
-sync_repos_path = os.path.dirname(__file__)
+sync_repos_path = os.path.abspath(os.path.dirname(__file__))
+print(sync_repos_path)
 lib_path = os.path.join(sync_repos_path, 'lib')
 sys.path.append(lib_path)
 from easygoogletranslate import EasyGoogleTranslate
@@ -101,15 +102,17 @@ def replace_author(repo_type, author_email, commit_authored_date):
 def git_commit(author_name, author_email, commit_message, commit_date, commit_authored_date, target_repo_path):
   try:
     # git add --all
-    subprocess.check_output(['git', '-C', target_repo_path, 'add', '--all'])
+    command = ['git', 'add', '.']
+    subprocess.check_output(command, cwd=target_repo_path)
 
     # git commit -m <message> --date=<date> --author=<author>
-    command = ['git', '-C', target_repo_path, 'commit']
+    command = ['git', 'commit']
     command += ['-m', commit_message]
     command += ['--date', commit_authored_date]
     command += ['--author', "{} <{}>".format(author_name, author_email)]
     env = {"GIT_COMMITTER_DATE": commit_date}
-    subprocess.check_call(command, env=env)
+    subprocess.check_call(command, env=env, cwd=target_repo_path)
+    print("Commit success")
   except subprocess.CalledProcessError as e:
     print("Error while committing to the repository: ", e)
     tb = traceback.format_exc()
@@ -119,10 +122,10 @@ def git_commit(author_name, author_email, commit_message, commit_date, commit_au
 def git_push(target_repo_path):
   try:
     # git push origin master
-    subprocess.check_output(['git', '-C', target_repo_path, 'push', "origin", "master"])
+    subprocess.check_output(['git', 'push', "origin", "master"], cwd=target_repo_path)
 
-    command = ['git', '-C', target_repo_path, 'log', '--oneline', '-1']
-    last_git_log = subprocess.check_output(command).decode('utf-8').strip()
+    command = ['git', 'log', '--oneline', '-1']
+    last_git_log = subprocess.check_output(command,cwd=target_repo_path).decode('utf-8').strip()
     print("Push target repo successful: ", last_git_log)
   except subprocess.CalledProcessError as e:
     print("Error while pushing to the repository: ", e)
@@ -235,7 +238,7 @@ def extract_commits_and_push(repo_type, commits, source_repo_path, target_repo_p
       # Git commit
       commit_message = format_commit_message(commit.message)
 
-      command = ["git", "show", "--format=%ci", "--no-patch", commit.hexsha]
+      command = ["git", "show", "-s", "--format=%ci", commit.hexsha]
       commit_date = subprocess.check_output(command, cwd=source_repo_path, text=True).strip()
 
       command = ["git", "show", "-s", "--format=%ad", "--date=iso", commit.hexsha]
@@ -271,8 +274,8 @@ def clone_repository(repo_address, repo_path):
     repo_name = repo_address[repo_address.rindex('/') + 1: repo_address.index('.git')]
     print("Repository " + repo_name + " cloned successfully.")
 
-    subprocess.check_output(['git', '-C', repo_path, 'config', 'user.name', 'prod_ali'])
-    subprocess.check_output(['git', '-C', repo_path, 'config', 'user.email', 'prod_ali@fintopia.tech'])
+    subprocess.check_output(['git', 'config', 'user.name', 'prod_ali'], cwd=repo_path)
+    subprocess.check_output(['git', 'config', 'user.email', 'prod_ali@fintopia.tech'], cwd=repo_path)
   except subprocess.CalledProcessError as e:
     print("An error occurred:", e)
 
@@ -311,8 +314,8 @@ def run_push_commits(repo):
   work_dir = config.get(repo, 'work_dir')
   source_repo_address = config.get(repo, 'source_repo_address')
   target_repo_address = config.get(repo, 'target_repo_address')
-  source_repo_path = work_dir + repo + '_source_repo'
-  target_repo_path = work_dir + repo + '_target_repo'
+  source_repo_path = sync_repos_path + work_dir + repo + '_source_repo'
+  target_repo_path = sync_repos_path + work_dir + repo + '_target_repo'
   sync_commits_since = config.get(repo, 'sync_commits_since')
 
   # Clone repos if not exist
@@ -325,9 +328,9 @@ def run_push_commits(repo):
 
   repo_type = config.get(repo, 'type')
   continuous_extract_commits(repo_type, source_repo_path, target_repo_path)
-
-  subprocess.run(['git', '-C', source_repo_path, 'gc', '--auto'])
-  subprocess.run(['git', '-C', target_repo_path, 'gc', '--auto'])
+  command = ['git', 'gc', '--auto']
+  subprocess.run(command, cwd=source_repo_path)
+  subprocess.run(command, cwd=target_repo_path)
   print('End syncing repo: ', repo)
 
 
