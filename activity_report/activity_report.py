@@ -45,7 +45,8 @@ INDO_DEVELOPER_USERNAME_LIST = [
   "m.ridho.saputra",
   "mario.claudius",
   "steven.agustinus",
-  "yulia.dewi"
+  "yulia.dewi",
+  "inez.amandha"
 ]
 
 NOT_ENGINEER_USERNAME_LIST = [

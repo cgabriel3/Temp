@@ -35,7 +35,8 @@ INDO_BACKEND_EMAILS = [
 INDO_FRONTEND_EMAILS = [
   "ega.frandika@fintopia.tech",
   "dante.clericuzio@fintopia.tech",
-  "kenneth.k.chang@fintopia.tech"
+  "kenneth.k.chang@fintopia.tech",
+  "inez.amandha@fintopia.tech"
 ]
 
 INDO_ANDROID_EMAILS = [
@@ -66,7 +67,8 @@ INDO_ENGINEER_EMAIL_TO_JOIN_DATE_MAP = {
   "m.ridho.saputra@fintopia.tech": "2023-05-08",
   "barry.juans@fintopia.tech": "2023-04-27",
   "danny.restu@fintopia.tech": "2023-12-21",
-  "steven.agustinus@fintopia.tech": "2024-06-10"
+  "steven.agustinus@fintopia.tech": "2024-06-10",
+  "inez.amandha@fintopia.tech": "2025-01-13"
 }
 
 
@@ -125,7 +127,7 @@ def git_push(target_repo_path):
     subprocess.check_output(['git', 'push', "origin", "master"], cwd=target_repo_path)
 
     command = ['git', 'log', '--oneline', '-1']
-    last_git_log = subprocess.check_output(command,cwd=target_repo_path).decode('utf-8').strip()
+    last_git_log = subprocess.check_output(command, cwd=target_repo_path).decode('utf-8').strip()
     print("Push target repo successful: ", last_git_log)
   except subprocess.CalledProcessError as e:
     print("Error while pushing to the repository: ", e)
